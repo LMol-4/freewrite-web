@@ -88,12 +88,15 @@ test.describe("timer", () => {
     await page.waitForTimeout(50);
 
     await expect(timerButton).toHaveText("0:00");
-    await expect(editor).toHaveCSS("opacity", "0.3");
+    // T3: the fade is a text-color change, not opacity — the caret must stay
+    // fully opaque, matching the original (`css/styles.css:345-347`).
+    await expect(editor).toHaveCSS("color", "rgba(51, 51, 51, 0.3)");
+    await expect(editor).toHaveCSS("caret-color", "rgb(51, 51, 51)");
 
     await page.clock.fastForward("00:06");
     await page.waitForTimeout(400);
 
     await expect(timerButton).toHaveText("15:00");
-    await expect(editor).toHaveCSS("opacity", "1");
+    await expect(editor).toHaveCSS("color", "rgb(51, 51, 51)");
   });
 });

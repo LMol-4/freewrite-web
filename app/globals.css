@@ -4,6 +4,7 @@
 :root {
   --bg-color: #ffffff;
   --text-color: rgb(51, 51, 51);
+  --text-color-faded: rgba(51, 51, 51, 0.3);
   --sidebar-bg: #ffffff;
   --sidebar-shadow: rgba(0, 0, 0, 0.1);
   --placeholder-color: rgba(0, 0, 0, 0.3);
@@ -35,6 +36,7 @@
   --popup-border: rgba(255, 255, 255, 0.1);
   --control-hover: rgba(255, 255, 255, 0.1);
   --text-color: #ffffff;
+  --text-color-faded: rgba(255, 255, 255, 0.3);
   --placeholder-color: rgba(255, 255, 255, 0.3);
   --entry-preview-color: rgba(255, 255, 255, 0.6);
   --control-text: rgba(255, 255, 255, 0.6);
@@ -46,6 +48,7 @@ html,
 body {
   height: 100%;
   overflow: hidden;
+  font-family: var(--font-lato), Arial, sans-serif;
   background-color: var(--bg-color);
   color: var(--text-color);
   transition:
@@ -96,14 +99,16 @@ body {
   margin: 0 auto;
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-color) transparent;
-  transition:
-    color 0.3s ease,
-    opacity 0.3s ease;
+  transition: color 0.3s ease;
 }
 
-/* T3: fades the text to 30% opacity for 5s when the timer completes. */
+/*
+ * T3: fades the text to 30% opacity for 5s when the timer completes.
+ * `color`, not `opacity` — `caret-color` above is a separate property and
+ * must stay fully opaque, matching `css/styles.css:345-347,451-457`.
+ */
 .editor.faded {
-  opacity: 0.3;
+  color: var(--text-color-faded);
 }
 
 .placeholder {
