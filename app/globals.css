@@ -125,3 +125,39 @@ body {
 .editor:hover::-webkit-scrollbar-thumb {
   background-color: rgba(0, 0, 0, 0.2);
 }
+
+/* Ported from `css/styles.css:241-274` (W3). */
+.bottom-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: var(--toolbar-bg);
+  border-top: 1px solid var(--toolbar-border);
+  color: var(--control-text);
+  font-size: 13px;
+  user-select: none;
+}
+
+.left-controls,
+.right-controls {
+  display: flex;
+  align-items: center;
+}
+
+.control-item {
+  cursor: pointer;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  color: var(--control-text);
+}
+
+.control-item:hover {
+  color: var(--control-text-hover);
+}
+
+.control-separator {
+  margin: 0 5px;
+  color: var(--control-separator);
+}

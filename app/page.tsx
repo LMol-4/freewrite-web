@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { pickPlaceholder } from "@/src/core/placeholders";
 import { Editor } from "@/src/ui/components/Editor";
+import { Toolbar } from "@/src/ui/components/Toolbar";
 import { useEntries } from "@/src/ui/hooks/useEntries";
 
 // D7: Lato is the honest default (not random). Wired to real font controls in
@@ -26,6 +27,7 @@ export default function Home() {
             fontSize={DEFAULT_FONT_SIZE}
           />
         )}
+        <Toolbar leftControls={[]} rightControls={[]} />
       </div>
     </div>
   );
