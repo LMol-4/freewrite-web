@@ -1,0 +1,47 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# next.js
+/.next/
+/out/
+/build
+next-env.d.ts
+
+# testing
+/coverage/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# env — .env.example is committed, real keys are not
+.env
+.env.*
+!.env.example
+
+# supabase — config.toml and migrations/ ARE committed; only local stack state is ignored
+supabase/.temp/
+supabase/.branches/
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# os / editor
+.DS_Store
+Thumbs.db
+*.swp
+
+# planning docs — local only, never committed
+PLAN.md
+PROGRESS.md
