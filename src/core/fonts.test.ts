@@ -5,6 +5,8 @@ import {
   DEFAULT_FONT_MODE,
   RANDOM_FONTS,
   pickRandomFont,
+  resolveFontFamily,
+  fontFamilyForRandomPick,
 } from "./fonts";
 
 describe("constants", () => {
@@ -35,5 +37,39 @@ describe("pickRandomFont", () => {
       const picked = pickRandomFont(() => i / RANDOM_FONTS.length);
       expect(RANDOM_FONTS).toContain(picked);
     }
+  });
+});
+
+describe("resolveFontFamily", () => {
+  it("resolves lato to the self-hosted variable", () => {
+    expect(resolveFontFamily("lato")).toBe("var(--font-lato)");
+  });
+
+  it("resolves system to the system font stack", () => {
+    expect(resolveFontFamily("system")).toContain("-apple-system");
+  });
+
+  it("resolves serif to the serif font stack", () => {
+    expect(resolveFontFamily("serif")).toBe("Times New Roman, serif");
+  });
+
+  it("resolves random using the given pick", () => {
+    expect(resolveFontFamily("random", "Georgia")).toBe("Georgia, serif");
+  });
+
+  it("picks one on the spot when random has no pick yet", () => {
+    expect(resolveFontFamily("random", undefined, () => 0)).toBe(fontFamilyForRandomPick(RANDOM_FONTS[0]));
+  });
+});
+
+describe("fontFamilyForRandomPick", () => {
+  it("maps every random font to a distinct css value", () => {
+    const families = RANDOM_FONTS.map(fontFamilyForRandomPick);
+    expect(new Set(families).size).toBe(RANDOM_FONTS.length);
+  });
+
+  it("self-hosts Garamond and Bookman under their substitute families", () => {
+    expect(fontFamilyForRandomPick("Garamond")).toBe("var(--font-eb-garamond)");
+    expect(fontFamilyForRandomPick("Bookman")).toBe("var(--font-libre-baskerville)");
   });
 });

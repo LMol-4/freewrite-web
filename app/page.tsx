@@ -3,17 +3,22 @@
 import { useState } from "react";
 import { pickPlaceholder } from "@/src/core/placeholders";
 import { Editor } from "@/src/ui/components/Editor";
+import { useFontControlItems } from "@/src/ui/components/FontControls";
 import { Toolbar } from "@/src/ui/components/Toolbar";
 import { useEntries } from "@/src/ui/hooks/useEntries";
-
-// D7: Lato is the honest default (not random). Wired to real font controls in
-// a later commit.
-const DEFAULT_FONT_FAMILY = "var(--font-lato)";
-const DEFAULT_FONT_SIZE = 18;
+import { usePreferences } from "@/src/ui/hooks/usePreferences";
 
 export default function Home() {
   const { entry, setBody } = useEntries();
+  const { font, fontSize, setFont, setFontSize } = usePreferences();
   const [placeholder] = useState(() => pickPlaceholder());
+
+  const fontControls = useFontControlItems({
+    fontMode: font,
+    fontSize,
+    onFontModeChange: setFont,
+    onFontSizeChange: setFontSize,
+  });
 
   return (
     <div className="app-container">
@@ -23,11 +28,11 @@ export default function Home() {
             value={entry.body}
             onChange={setBody}
             placeholder={placeholder}
-            fontFamily={DEFAULT_FONT_FAMILY}
-            fontSize={DEFAULT_FONT_SIZE}
+            fontFamily={fontControls.fontFamily}
+            fontSize={fontSize}
           />
         )}
-        <Toolbar leftControls={[]} rightControls={[]} />
+        <Toolbar leftControls={fontControls.items} rightControls={[]} />
       </div>
     </div>
   );
