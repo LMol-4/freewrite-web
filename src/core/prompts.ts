@@ -11,7 +11,7 @@ do not just go through every single thing i say, and say it back to me. you need
 ideally, you're style/tone should sound like the user themselves. it's as if the user is hearing their own tone but it should still feel different, because you have different things to say and don't just repeat back they say.
 
 else, start by saying, "hey, thanks for showing me this. my thoughts:"
-
+    
 my entry:`;
 
 /** `js/renderer.js:58-66`, verbatim. */
