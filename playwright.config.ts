@@ -19,7 +19,7 @@ export default defineConfig({
   ],
   // Test the production build, not `next dev` — dev-mode timing hides real races.
   webServer: {
-    command: "npm run build && npm run start",
+    command: "pnpm run build && pnpm run start",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
