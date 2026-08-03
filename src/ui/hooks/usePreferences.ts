@@ -2,6 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { DEFAULT_FONT_MODE, DEFAULT_FONT_SIZE, FONT_MODES, FONT_SIZES, type FontMode, type FontSize } from "../../core/fonts";
+import { DEFAULT_THEME, THEMES, type Theme } from "../../core/theme";
 
 /**
  * §6 preferences: one `localStorage` key holding a small JSON object, not
@@ -11,6 +12,7 @@ import { DEFAULT_FONT_MODE, DEFAULT_FONT_SIZE, FONT_MODES, FONT_SIZES, type Font
 const STORAGE_KEY = "freewrite:prefs";
 
 interface Preferences {
+  theme: Theme;
   font: FontMode;
   fontSize: FontSize;
 }
@@ -21,7 +23,11 @@ interface StoredPrefs extends Preferences {
 
 // A stable reference: `useSyncExternalStore` treats a new object identity as
 // a change, so a function recreating this on every call causes a render loop.
-const DEFAULT_PREFS: Preferences = { font: DEFAULT_FONT_MODE, fontSize: DEFAULT_FONT_SIZE };
+const DEFAULT_PREFS: Preferences = { theme: DEFAULT_THEME, font: DEFAULT_FONT_MODE, fontSize: DEFAULT_FONT_SIZE };
+
+function isTheme(value: unknown): value is Theme {
+  return typeof value === "string" && (THEMES as readonly string[]).includes(value);
+}
 
 function isFontMode(value: unknown): value is FontMode {
   return typeof value === "string" && (FONT_MODES as readonly string[]).includes(value);
@@ -37,6 +43,7 @@ function parse(raw: string | null): Preferences {
   try {
     const parsed = JSON.parse(raw);
     return {
+      theme: isTheme(parsed.theme) ? parsed.theme : DEFAULT_THEME,
       font: isFontMode(parsed.font) ? parsed.font : DEFAULT_FONT_MODE,
       fontSize: isFontSize(parsed.fontSize) ? parsed.fontSize : DEFAULT_FONT_SIZE,
     };
@@ -85,8 +92,9 @@ function write(prefs: Preferences) {
 export function usePreferences() {
   const prefs = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
+  const setTheme = useCallback((theme: Theme) => write({ ...getSnapshot(), theme }), []);
   const setFont = useCallback((font: FontMode) => write({ ...getSnapshot(), font }), []);
   const setFontSize = useCallback((fontSize: FontSize) => write({ ...getSnapshot(), fontSize }), []);
 
-  return { font: prefs.font, fontSize: prefs.fontSize, setFont, setFontSize };
+  return { theme: prefs.theme, font: prefs.font, fontSize: prefs.fontSize, setTheme, setFont, setFontSize };
 }
