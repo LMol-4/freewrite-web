@@ -6,13 +6,16 @@ import { otherTheme } from "@/src/core/theme";
 import { Editor } from "@/src/ui/components/Editor";
 import { useFontControlItems } from "@/src/ui/components/FontControls";
 import { ThemeToggle } from "@/src/ui/components/ThemeToggle";
+import { TimerButton } from "@/src/ui/components/TimerButton";
 import { Toolbar } from "@/src/ui/components/Toolbar";
 import { useEntries } from "@/src/ui/hooks/useEntries";
 import { usePreferences } from "@/src/ui/hooks/usePreferences";
+import { useTimer } from "@/src/ui/hooks/useTimer";
 
 export default function Home() {
   const { entry, setBody } = useEntries();
   const { theme, font, fontSize, setTheme, setFont, setFontSize } = usePreferences();
+  const timer = useTimer();
   const [placeholder] = useState(() => pickPlaceholder());
 
   // H1/H2: the blocking script in the root layout sets `data-theme` before
@@ -38,11 +41,15 @@ export default function Home() {
             placeholder={placeholder}
             fontFamily={fontControls.fontFamily}
             fontSize={fontSize}
+            faded={timer.status === "complete"}
           />
         )}
         <Toolbar
           leftControls={fontControls.items}
-          rightControls={[<ThemeToggle key="theme" theme={theme} onToggle={() => setTheme(otherTheme(theme))} />]}
+          rightControls={[
+            <TimerButton key="timer" label={timer.label} onClick={timer.toggle} />,
+            <ThemeToggle key="theme" theme={theme} onToggle={() => setTheme(otherTheme(theme))} />,
+          ]}
         />
       </div>
     </div>

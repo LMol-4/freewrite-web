@@ -6,13 +6,15 @@ interface EditorProps {
   placeholder: string;
   fontFamily: string;
   fontSize: number;
+  /** T3: fades the text to 30% opacity for 5s when the timer completes. */
+  faded?: boolean;
 }
 
 /**
  * The textarea (E1-E6). Plain, controlled `<textarea>` — no contenteditable,
  * for IME and mobile-keyboard behavior a rich editor doesn't get for free.
  */
-export function Editor({ value, onChange, placeholder, fontFamily, fontSize }: EditorProps) {
+export function Editor({ value, onChange, placeholder, fontFamily, fontSize, faded = false }: EditorProps) {
   const showPlaceholder = value.trim() === "";
   const fontStyle = { fontFamily, fontSize };
 
@@ -28,7 +30,7 @@ export function Editor({ value, onChange, placeholder, fontFamily, fontSize }: E
         </div>
       )}
       <textarea
-        className="editor"
+        className={faded ? "editor faded" : "editor"}
         style={fontStyle}
         spellCheck={false}
         value={value}

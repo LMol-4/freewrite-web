@@ -96,7 +96,14 @@ body {
   margin: 0 auto;
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-color) transparent;
-  transition: color 0.3s ease;
+  transition:
+    color 0.3s ease,
+    opacity 0.3s ease;
+}
+
+/* T3: fades the text to 30% opacity for 5s when the timer completes. */
+.editor.faded {
+  opacity: 0.3;
 }
 
 .placeholder {
