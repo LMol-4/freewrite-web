@@ -269,3 +269,75 @@ body {
   background-color: rgba(0, 0, 0, 0.5);
   z-index: 1999;
 }
+
+/* Auth forms (§8) — no original counterpart, styled to match the app's existing look. */
+.auth-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  width: 100%;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 340px;
+  padding: 30px;
+}
+
+.auth-form h1 {
+  font-size: 20px;
+  margin: 0 0 6px;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--control-text);
+}
+
+.auth-form input {
+  padding: 8px 10px;
+  border: 1px solid var(--popup-border);
+  border-radius: 4px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-size: 14px;
+}
+
+.auth-form button {
+  padding: 10px;
+  border: 1px solid var(--popup-border);
+  border-radius: 4px;
+  background: none;
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.auth-form button:hover {
+  background-color: var(--control-hover);
+}
+
+.auth-form button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.auth-error {
+  color: #c0392b;
+  font-size: 13px;
+  margin: 0;
+}
+
+.auth-links {
+  font-size: 13px;
+  color: var(--control-text);
+  margin: 0;
+}
