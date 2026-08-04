@@ -92,6 +92,33 @@ export type Database = {
           },
         ]
       }
+      preferences: {
+        Row: {
+          client_updated_at: string
+          font: string
+          font_size: number
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_updated_at?: string
+          font?: string
+          font_size?: number
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_updated_at?: string
+          font?: string
+          font_size?: number
+          theme?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
