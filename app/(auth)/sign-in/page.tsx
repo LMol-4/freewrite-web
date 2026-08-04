@@ -25,6 +25,9 @@ export default function SignInPage() {
           {pending ? "Signing in…" : "Sign in"}
         </button>
         <p className="auth-links">
+          <Link href="/forgot-password">Forgot password?</Link>
+        </p>
+        <p className="auth-links">
           No account? <Link href="/sign-up">Sign up</Link>
         </p>
       </form>
