@@ -9,7 +9,7 @@ import { DEFAULT_THEME, THEMES, type Theme } from "../../core/theme";
  * four loose keys, so a reconcile (arriving in M3) has one `clientUpdatedAt`
  * to compare against.
  */
-const STORAGE_KEY = "freewrite:prefs";
+export const STORAGE_KEY = "freewrite:prefs";
 
 interface Preferences {
   theme: Theme;

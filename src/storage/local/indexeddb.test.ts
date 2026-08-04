@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createIndexedDBEntryStore } from "./indexeddb";
+import { clearAllEntries, createIndexedDBEntryStore } from "./indexeddb";
 import { VersionConflictError } from "../types";
 
 // `indexedDB.deleteDatabase` blocks until every open connection closes, and
@@ -84,5 +84,17 @@ describe("createIndexedDBEntryStore", () => {
     const created = await store.create({ body: "gone soon" });
     await store.delete(created.id);
     expect(await store.get(created.id)).toBeNull();
+  });
+
+  it("clearAllEntries empties the store without leaving it unusable", async () => {
+    const store = createIndexedDBEntryStore();
+    await store.create({ body: "one" });
+    await store.create({ body: "two" });
+
+    await clearAllEntries();
+
+    expect(await store.list()).toHaveLength(0);
+    const created = await store.create({ body: "after wipe" });
+    expect(await store.get(created.id)).toEqual(created);
   });
 });

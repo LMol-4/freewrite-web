@@ -99,3 +99,9 @@ export function createIndexedDBEntryStore(): EntryStore {
     },
   };
 }
+
+/** Sign-out wipe (§8): clears the local mirror without deleting the database itself. */
+export async function clearAllEntries(): Promise<void> {
+  const db = await openFreewriteDB();
+  await db.clear(STORE_NAME);
+}
