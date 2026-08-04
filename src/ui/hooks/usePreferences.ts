@@ -1,76 +1,41 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
-import { DEFAULT_FONT_MODE, DEFAULT_FONT_SIZE, FONT_MODES, FONT_SIZES, type FontMode, type FontSize } from "../../core/fonts";
-import { DEFAULT_THEME, THEMES, type Theme } from "../../core/theme";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import type { FontMode, FontSize } from "../../core/fonts";
+import type { Theme } from "../../core/theme";
+import {
+  DEFAULT_PREFERENCES,
+  fetchServerPreferences,
+  parseStoredPreferences,
+  readLocalRaw,
+  upsertServerPreferences,
+  writeLocalPreferences,
+  type Preferences,
+} from "../../storage/preferences";
 
-/**
- * §6 preferences: one `localStorage` key holding a small JSON object, not
- * four loose keys, so a reconcile (arriving in M3) has one `clientUpdatedAt`
- * to compare against.
- */
-export const STORAGE_KEY = "freewrite:prefs";
-
-interface Preferences {
-  theme: Theme;
-  font: FontMode;
-  fontSize: FontSize;
-}
-
-interface StoredPrefs extends Preferences {
-  clientUpdatedAt: string;
-}
-
-// A stable reference: `useSyncExternalStore` treats a new object identity as
-// a change, so a function recreating this on every call causes a render loop.
-const DEFAULT_PREFS: Preferences = { theme: DEFAULT_THEME, font: DEFAULT_FONT_MODE, fontSize: DEFAULT_FONT_SIZE };
-
-function isTheme(value: unknown): value is Theme {
-  return typeof value === "string" && (THEMES as readonly string[]).includes(value);
-}
-
-function isFontMode(value: unknown): value is FontMode {
-  return typeof value === "string" && (FONT_MODES as readonly string[]).includes(value);
-}
-
-function isFontSize(value: unknown): value is FontSize {
-  return typeof value === "number" && (FONT_SIZES as readonly number[]).includes(value);
-}
-
-/** Falls back to defaults on anything malformed, rather than throwing before paint. */
-function parse(raw: string | null): Preferences {
-  if (!raw) return DEFAULT_PREFS;
-  try {
-    const parsed = JSON.parse(raw);
-    return {
-      theme: isTheme(parsed.theme) ? parsed.theme : DEFAULT_THEME,
-      font: isFontMode(parsed.font) ? parsed.font : DEFAULT_FONT_MODE,
-      fontSize: isFontSize(parsed.fontSize) ? parsed.fontSize : DEFAULT_FONT_SIZE,
-    };
-  } catch {
-    return DEFAULT_PREFS;
-  }
-}
+/** §6 sync strategy step 3: debounce upserts rather than one per keystroke-equivalent change. */
+const UPSERT_DEBOUNCE_MS = 1000;
 
 // `useSyncExternalStore` requires `getSnapshot` to return a stable reference
 // when nothing has changed, so the parsed value is cached against the raw
 // string it came from.
 let cachedRaw: string | null | undefined;
-let cachedPrefs: Preferences = DEFAULT_PREFS;
+let cachedPrefs: Preferences = DEFAULT_PREFERENCES;
 const listeners = new Set<() => void>();
 
 function getSnapshot(): Preferences {
-  const raw = localStorage.getItem(STORAGE_KEY);
+  const raw = readLocalRaw();
   if (raw !== cachedRaw) {
     cachedRaw = raw;
-    cachedPrefs = parse(raw);
+    const stored = parseStoredPreferences(raw);
+    cachedPrefs = { theme: stored.theme, font: stored.font, fontSize: stored.fontSize };
   }
   return cachedPrefs;
 }
 
 /** Pre-paint value on both the server render and the client's first hydration pass. */
 function getServerSnapshot(): Preferences {
-  return DEFAULT_PREFS;
+  return DEFAULT_PREFERENCES;
 }
 
 function subscribe(onStoreChange: () => void): () => void {
@@ -78,23 +43,77 @@ function subscribe(onStoreChange: () => void): () => void {
   return () => listeners.delete(onStoreChange);
 }
 
-function write(prefs: Preferences) {
-  const stored: StoredPrefs = { ...prefs, clientUpdatedAt: new Date().toISOString() };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+function write(prefs: Preferences): string {
+  const stored = writeLocalPreferences(prefs);
   cachedRaw = undefined;
   listeners.forEach((listener) => listener());
+  return stored.clientUpdatedAt;
 }
 
 /**
- * Local-only for M2 (§16): reads/writes the `freewrite:prefs` cache. Server
- * reconcile (§6 sync strategy step 2) arrives in M3.
+ * §6 sync strategy: localStorage is the fast path and pre-paint cache
+ * (already applied by the root layout's blocking script, M2); this hook adds
+ * the boot reconcile (step 2) and the debounced upsert on change (step 3).
  */
 export function usePreferences() {
   const prefs = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const upsertTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const setTheme = useCallback((theme: Theme) => write({ ...getSnapshot(), theme }), []);
-  const setFont = useCallback((font: FontMode) => write({ ...getSnapshot(), font }), []);
-  const setFontSize = useCallback((fontSize: FontSize) => write({ ...getSnapshot(), fontSize }), []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const server = await fetchServerPreferences();
+      if (cancelled || !server) return;
+
+      const local = parseStoredPreferences(readLocalRaw());
+      if (new Date(server.clientUpdatedAt).getTime() > new Date(local.clientUpdatedAt).getTime()) {
+        writeLocalPreferences(
+          { theme: server.theme, font: server.font, fontSize: server.fontSize },
+          server.clientUpdatedAt,
+        );
+        cachedRaw = undefined;
+        listeners.forEach((listener) => listener());
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (upsertTimeoutRef.current) clearTimeout(upsertTimeoutRef.current);
+    };
+  }, []);
+
+  const scheduleUpsert = useCallback((updated: Preferences, clientUpdatedAt: string) => {
+    if (upsertTimeoutRef.current) clearTimeout(upsertTimeoutRef.current);
+    upsertTimeoutRef.current = setTimeout(() => {
+      upsertServerPreferences(updated, clientUpdatedAt);
+    }, UPSERT_DEBOUNCE_MS);
+  }, []);
+
+  const setTheme = useCallback(
+    (theme: Theme) => {
+      const updated = { ...getSnapshot(), theme };
+      scheduleUpsert(updated, write(updated));
+    },
+    [scheduleUpsert],
+  );
+  const setFont = useCallback(
+    (font: FontMode) => {
+      const updated = { ...getSnapshot(), font };
+      scheduleUpsert(updated, write(updated));
+    },
+    [scheduleUpsert],
+  );
+  const setFontSize = useCallback(
+    (fontSize: FontSize) => {
+      const updated = { ...getSnapshot(), fontSize };
+      scheduleUpsert(updated, write(updated));
+    },
+    [scheduleUpsert],
+  );
 
   return { theme: prefs.theme, font: prefs.font, fontSize: prefs.fontSize, setTheme, setFont, setFontSize };
 }
