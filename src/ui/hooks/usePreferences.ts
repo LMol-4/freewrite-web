@@ -41,6 +41,7 @@ export function usePreferences(userId: string, owner: string | null, enabled: bo
     return local.current;
   }, [userId, owner, refresh]);
   const flush = useCallback(async () => { await flushLocal(); await sync.current?.flush(); }, [flushLocal]);
+  const settle = useCallback(async () => { await local.current?.catch(() => {}); await sync.current?.settled(); }, []);
   useEffect(() => {
     active.current = enabled;
     if (!enabled) return;
@@ -88,7 +89,7 @@ export function usePreferences(userId: string, owner: string | null, enabled: bo
     if (schedule.current) clearTimeout(schedule.current);
     schedule.current = setTimeout(() => retryRemote.current(), 1000);
   }, [userId, owner, flushLocal]);
-  return { ...prefs, error, status, flush,
+  return { ...prefs, error, status, flush, settle,
     quiesce: () => { paused.current = true; if (schedule.current) clearTimeout(schedule.current); },
     resume: () => { paused.current = false; },
     setTheme: (theme: Theme) => patch({ theme }), setFont: (font: FontMode) => patch({ font }), setFontSize: (fontSize: FontSize) => patch({ fontSize }) };

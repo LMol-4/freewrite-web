@@ -29,8 +29,17 @@ export const test = base.extend<{ account: Account; createAccount: () => Promise
       const account = { id: data.user.id, email, password }; accounts.push(account); return account;
     });
     for (const account of accounts) {
-      const { data: objects } = await admin.storage.from("notes").list(account.id);
-      if (objects?.length) { const result = await admin.storage.from("notes").remove(objects.map(object => `${account.id}/${object.name}`)); if (result.error) throw result.error; }
+      async function removeFolder(prefix: string) {
+        for (;;) {
+          const { data: objects, error } = await admin.storage.from("notes").list(prefix, { limit: 100 });
+          if (error) throw error; if (!objects?.length) return;
+          for (const object of objects) {
+            if (!object.id) await removeFolder(`${prefix}/${object.name}`);
+            else { const result = await admin.storage.from("notes").remove([`${prefix}/${object.name}`]); if (result.error) throw result.error; }
+          }
+        }
+      }
+      await removeFolder(account.id);
       const { error } = await admin.auth.admin.deleteUser(account.id); if (error) throw error;
     }
   },

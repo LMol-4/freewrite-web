@@ -60,6 +60,7 @@ test("dark theme is present before hydration and stays dark without hydration er
   expect(errors.filter(error => /hydration|did not match|server rendered/i.test(error))).toEqual([]);
 });
 test("dialogs trap focus, default to Cancel and restore focus", async ({ page }) => {
+  await page.route("**/rest/v1/rpc/publish_entry", route => route.abort());
   await page.getByRole("textbox", { name: "Freewrite entry" }).fill("keep this");
   const signOut = page.getByRole("button", { name: "Sign out", exact: true }); await signOut.click();
   const cancel = page.getByRole("button", { name: "Cancel", exact: true }); await expect(cancel).toBeFocused();

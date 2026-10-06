@@ -3,38 +3,54 @@ import { deriveCharCount, derivePreview, deriveWordCount, NEW_ENTRY_BODY } from 
 import { generateEntryId } from "../../core/id";
 import { type Entry, type EntryMeta, VersionConflictError } from "../types";
 import type { PreferenceState } from "../preferences";
+import type { Mutation, Cleanup } from "../sync/types";
 
-export interface LocalEntry extends Entry {
+export interface LocalEntry extends Omit<Entry, "body"> {
+  body: string | null;
   userId: string;
   localGeneration: number;
   baseServerVersion: number | null;
   dirty: boolean;
   recovered: boolean;
+  revisionId?: string | null;
+  storagePath?: string;
+  sha256?: string | null;
+  conflictOf?: string | null;
+  deleted?: boolean;
+  deleteVersion?: number | null;
 }
 interface Meta { key: string; owner?: string; expires?: number; locked?: boolean; cleanup?: boolean; count?: number }
 export interface FreewriteDB extends DBSchema {
   entries: { key: [string, string]; value: LocalEntry; indexes: { account: string } };
   legacy: { key: string; value: Entry };
   pending: { key: [string, string]; value: { userId: string; entryId: string; generation: number }; indexes: { account: string } };
+  outbox: { key: [string, string]; value: Mutation; indexes: { account: string } };
+  cleanup: { key: [string, string]; value: Cleanup; indexes: { account: string } };
   preferences: { key: string; value: PreferenceState };
   meta: { key: string; value: Meta };
 }
 let connection: Promise<IDBPDatabase<FreewriteDB>> | undefined;
 export function openFreewriteDB() {
-  if (!connection) connection = openDB<FreewriteDB>("freewrite", 2, {
+  if (!connection) connection = openDB<FreewriteDB>("freewrite", 3, {
     async upgrade(db, oldVersion, _newVersion, tx) {
+      if (oldVersion < 2) {
       db.createObjectStore("legacy", { keyPath: "id" });
       db.createObjectStore("meta", { keyPath: "key" });
       if (oldVersion === 1) {
         // Keep exact ownerless records; never adopt them into the signing-in account.
         const legacy = await tx.objectStore("entries").getAll();
-        for (const entry of legacy) await tx.objectStore("legacy").put(entry);
+        for (const entry of legacy) await tx.objectStore("legacy").put(entry as Entry);
         await tx.objectStore("meta").put({ key: "legacy", count: legacy.length });
         db.deleteObjectStore("entries");
       }
       db.createObjectStore("entries", { keyPath: ["userId", "id"] }).createIndex("account", "userId");
       db.createObjectStore("pending", { keyPath: ["userId", "entryId"] }).createIndex("account", "userId");
       db.createObjectStore("preferences", { keyPath: "userId" });
+      }
+      if (oldVersion < 3) {
+        db.createObjectStore("outbox", { keyPath: ["userId", "mutationId"] }).createIndex("account", "userId");
+        db.createObjectStore("cleanup", { keyPath: ["userId", "path"] }).createIndex("account", "userId");
+      }
     },
     blocking() { void connection?.then(db => db.close()); connection = undefined; notifyUpgrade(); },
     blocked() { notifyUpgrade(); },
@@ -86,8 +102,8 @@ export async function setAccountLock(userId: string, owner: string, locked: bool
 }
 export async function clearAccount(userId: string) {
   const db = await openFreewriteDB();
-  const tx = db.transaction(["entries", "pending", "preferences", "meta"], "readwrite");
-  for (const name of ["entries", "pending"] as const) {
+  const tx = db.transaction(["entries", "pending", "outbox", "cleanup", "preferences", "meta"], "readwrite");
+  for (const name of ["entries", "pending", "outbox", "cleanup"] as const) {
     for (const key of await tx.objectStore(name).index("account").getAllKeys(userId)) await tx.objectStore(name).delete(key);
   }
   await tx.objectStore("preferences").delete(userId);
@@ -109,7 +125,7 @@ function toMeta(e: LocalEntry): EntryMeta { const { id, createdAt, updatedAt, pr
 function makeEntry(userId: string, body: string, createdAt = new Date(), recovered = false): LocalEntry {
   return { userId, id: generateEntryId(), body, createdAt: createdAt.toISOString(), updatedAt: createdAt.toISOString(),
     previewText: derivePreview(body), wordCount: deriveWordCount(body), charCount: deriveCharCount(body),
-    version: 1, localGeneration: 1, baseServerVersion: null, dirty: true, recovered };
+    version: 0, localGeneration: 1, baseServerVersion: null, dirty: true, recovered };
 }
 async function put(tx: WriteTx, entry: LocalEntry) {
   await tx.objectStore("entries").put(entry);
@@ -124,16 +140,16 @@ export function createIndexedDBEntryStore(userId: string, owner: string) {
     catch (error) { try { tx.abort(); } catch {} await tx.done.catch(() => {}); throw error; }
   }
   return {
-    async list(opts?: { before?: Date; limit?: number }) {
+    async list(opts?: { cursor?: import("../types").EntryCursor; limit?: number }) {
       let all = await (await openFreewriteDB()).getAllFromIndex("entries", "account", userId);
       all.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
-      if (opts?.before) all = all.filter(e => e.createdAt < opts.before!.toISOString());
+      if (opts?.cursor) { const cursor = opts.cursor; all = all.filter(e => e.createdAt < cursor.createdAt || (e.createdAt === cursor.createdAt && e.id < cursor.id)); }
       return all.slice(0, opts?.limit).map(toMeta);
     },
     async get(id: string) { return (await (await openFreewriteDB()).get("entries", [userId, id])) ?? null; },
     ensureEntry() { return write(async tx => {
       const all = await tx.objectStore("entries").index("account").getAll(userId);
-      const existing = all.filter(e => !e.recovered).sort((a,b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))[0];
+      const existing = all.filter(e => !e.recovered && !e.deleted).sort((a,b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))[0];
       if (existing) return existing;
       const entry = makeEntry(userId, NEW_ENTRY_BODY); await put(tx, entry); return entry;
     }); },
@@ -141,12 +157,14 @@ export function createIndexedDBEntryStore(userId: string, owner: string) {
     update(id: string, body: string, expectedGeneration: number) { return write(async tx => {
       const existing = await tx.objectStore("entries").get([userId, id]);
       if (!existing) throw Error(`entry not found: ${id}`);
+      if (existing.deleted || existing.recovered || existing.body === null) throw Error("This entry is not editable.");
       if (existing.localGeneration !== expectedGeneration) throw new VersionConflictError(id);
-      const updated = { ...existing, body, previewText: derivePreview(body), wordCount: deriveWordCount(body), charCount: deriveCharCount(body), updatedAt: new Date().toISOString(), localGeneration: existing.localGeneration + 1, version: existing.version + 1, dirty: true };
+      if (existing.body === body) return existing;
+      const updated = { ...existing, body, previewText: derivePreview(body), wordCount: deriveWordCount(body), charCount: deriveCharCount(body), updatedAt: new Date().toISOString(), localGeneration: existing.localGeneration + 1, dirty: true };
       await put(tx, updated); return updated;
     }); },
     recover(body: string) { return write(async tx => { const entry = makeEntry(userId, body, new Date(), true); await put(tx, entry); return entry; }); },
-    delete(id: string) { return write(async tx => { await tx.objectStore("entries").delete([userId, id]); await tx.objectStore("pending").delete([userId, id]); }); },
-    async hasWriting() { return (await (await openFreewriteDB()).getAllFromIndex("entries", "account", userId)).some(e => e.body.trim() !== ""); },
+    // Deletion must go through the durable sync journal, including unpublished attempts.
+    async hasWriting() { return (await (await openFreewriteDB()).getAllFromIndex("entries", "account", userId)).some(e => e.dirty && e.body?.trim() !== ""); },
   };
 }

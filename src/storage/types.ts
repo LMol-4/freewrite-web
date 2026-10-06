@@ -1,6 +1,5 @@
-/**
- * The MCP seam (§12). A later MCP server implements tools over
- * `SupabaseEntryStore` through this same interface, with no changes to the UI.
+/** Portable entry derivations. Account-local generations are distinct from server versions.
+ * The injectable remote boundary is RemoteStore in sync/types.ts.
  */
 
 export interface EntryMeta {
@@ -25,11 +24,4 @@ export class VersionConflictError extends Error {
   }
 }
 
-export interface EntryStore {
-  list(opts?: { limit?: number; before?: Date }): Promise<EntryMeta[]>;
-  get(id: string): Promise<Entry | null>;
-  create(input: { body: string; createdAt?: Date }): Promise<Entry>;
-  update(id: string, body: string, expectedVersion: number): Promise<Entry>;
-  delete(id: string): Promise<void>;
-  search?(query: string): Promise<EntryMeta[]>;
-}
+export interface EntryCursor { createdAt: string; id: string }

@@ -45,6 +45,7 @@ export class PreferenceSync {
   private running: Promise<void> | null = null;
   constructor(private userId: string, private owner: string, private remote: PreferenceRemote, private changed: () => void) {}
   flush() { return this.running ??= this.drain().finally(() => { this.running = null; }); }
+  async settled() { await this.running?.catch(() => {}); }
   private async reconcile(server: ServerPreferences, sent?: PreferenceState) {
     const db = await openFreewriteDB();
     const tx = db.transaction(["preferences", "meta"], "readwrite");

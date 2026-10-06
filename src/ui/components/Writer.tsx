@@ -25,9 +25,21 @@ export function Writer({ userId, initialPlaceholder }: { userId: string; initial
   const preferences = usePreferences(userId, entries.owner, authenticated);
   const { theme, font, fontSize, setTheme, setFont, setFontSize } = preferences;
   const timer = useTimer();
-  const signOut = useSignOut({ userId, owner: entries.owner, flush: entries.flush, flushPreferences: preferences.flush, broadcastLock: entries.broadcastLock, suspend: entries.suspend, quiescePreferences: preferences.quiesce, resumePreferences: preferences.resume });
+  const signOut = useSignOut({ userId, owner: entries.owner, flush: entries.flush, flushRemote: entries.flushRemote, settle: entries.settle, quiesce: entries.quiesce, resume: entries.resume, flushPreferences: preferences.flush, settlePreferences: preferences.settle, broadcastLock: entries.broadcastLock, suspend: entries.suspend, quiescePreferences: preferences.quiesce, resumePreferences: preferences.resume });
   const placeholder = initialPlaceholder;
   const { suspend } = entries;
+  const { flushRemote } = entries;
+  const { flush: flushPreferences } = preferences;
+  const syncDisabled = entries.readOnly || !authenticated || signOut.busy || signOut.confirm;
+
+  useEffect(() => {
+    const save = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault(); if (!syncDisabled) void Promise.all([flushRemote(), flushPreferences()]).catch(() => {});
+      }
+    };
+    window.addEventListener("keydown", save); return () => window.removeEventListener("keydown", save);
+  }, [flushRemote, flushPreferences, syncDisabled]);
 
 
   useEffect(() => {
@@ -60,11 +72,16 @@ export function Writer({ userId, initialPlaceholder }: { userId: string; initial
         {!authenticated && <p role="alert">Your session changed. Local writing is retained. <a href="/sign-in">Sign in again</a>.</p>}
         {entries.legacyCount > 0 && <p role="status">{entries.legacyCount} legacy entries are preserved separately. Their account ownership needs to be decided before import.</p>}
         <p role="status" aria-live="polite">{entries.status}</p>
+        <p><span role="status" aria-live="polite">{entries.syncStatus === "Entries synced" && preferences.status === "Preferences synced" && entries.status === "Saved on this device" ? "Synced" : entries.syncStatus}</span>{" "}
+          <button type="button" disabled={syncDisabled} onClick={() => void Promise.all([entries.flushRemote(), preferences.flush()]).catch(() => {})}>Sync now</button>
+        </p>
+        {entries.notice && <p role="status">{entries.notice} <button type="button" onClick={entries.dismissNotice}>Dismiss</button></p>}
         {entries.error && <p role="alert">{entries.error} <button type="button" onClick={() => void entries.retry()}>Retry local save</button> Keep the text available to copy.</p>}
         {preferences.error && <p role="alert">{preferences.error} <button type="button" onClick={() => void preferences.flush().catch(() => {})}>Retry preferences</button></p>}
         <span role="status">{preferences.status}</span>
         {signOut.error && <p role="alert">{signOut.error} {signOut.sessionRemoved && <button type="button" onClick={() => void signOut.signOut(true)}>Retry cleanup</button>}</p>}
-        {entry && authenticated && (
+        {entry?.body === null && <p role="alert">This entry is not downloaded. Reconnect and retry sync to open it.</p>}
+        {entry && entry.body !== null && authenticated && (
           <Editor
             value={entry.body}
             onChange={setBody}
@@ -85,7 +102,7 @@ export function Writer({ userId, initialPlaceholder }: { userId: string; initial
         /></fieldset>
         {signOut.confirm && <ConfirmDialog openerRef={signOutRef} onCancel={signOut.busy ? () => {} : signOut.cancel}>
           {signOut.error && <p role="alert">{signOut.error}</p>}
-          <p>Cloud writing sync is not available yet. Discarding removes this account’s unsynced writing and preference changes from this browser. It cannot undo changes already saved remotely.</p>
+          <p>Some changes could not be synced. Discarding removes this account’s unsynced writing and preference changes from this browser. It cannot undo changes already saved remotely.</p>
           <button type="button" autoFocus onClick={signOut.cancel} disabled={signOut.busy}>Cancel</button>
           <button type="button" onClick={() => void signOut.signOut(true)} disabled={signOut.busy}>Discard local writing and sign out</button>
         </ConfirmDialog>}

@@ -1,5 +1,6 @@
 import { test, expect, login, localClients } from "./fixtures";
 test("cancel and failed sign-out retain writing; explicit discard clears only this account", async ({ page, account }) => {
+  await page.route("**/rest/v1/rpc/publish_entry", route => route.abort());
   const editor = page.getByRole("textbox", { name: "Freewrite entry" });
   await editor.fill("Unsynced writing must survive"); await expect(page.getByText("Saved on this device", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
@@ -18,6 +19,7 @@ test("cancel and failed sign-out retain writing; explicit discard clears only th
   await expect(page).toHaveURL(/sign-in/); await login(page, account); await expect(editor).toHaveValue("\n\n");
 });
 test("one tab writes, another stays read-only and is locked by sign-out", async ({ page, context }) => {
+  await page.route("**/rest/v1/rpc/publish_entry", route => route.abort());
   const editor = page.getByRole("textbox", { name: "Freewrite entry" }); await editor.fill("two-tab secret");
   await expect(page.getByText("Saved on this device", { exact: true })).toBeVisible();
   const second = await context.newPage(); await second.goto("/");
@@ -50,11 +52,12 @@ test("account B cannot see A's local writing after an external session change or
   await expect(page.getByRole("textbox", { name: "Freewrite entry" })).not.toHaveValue("private A retained");
 });
 test("RLS and Storage reject anonymous and cross-account access", async ({ account, createAccount }) => {
-  const b = await createAccount(); const { user } = localClients(); const aClient = user(); const bClient = user(); const anonymous = user();
+  const b = await createAccount(); const { user, admin } = localClients(); const aClient = user(); const bClient = user(); const anonymous = user();
   expect((await aClient.auth.signInWithPassword(account)).error).toBeNull(); expect((await bClient.auth.signInWithPassword(b)).error).toBeNull();
   const id = crypto.randomUUID(); const path = `${account.id}/${id}.md`;
   expect((await aClient.storage.from("notes").upload(path, "private body", { contentType: "text/markdown" })).error).toBeNull();
-  expect((await aClient.from("entries").insert({ id, user_id: account.id, storage_path: path, preview_text: "private", word_count: 2, char_count: 12 })).error).toBeNull();
+  expect((await aClient.from("entries").insert({ id, user_id: account.id, storage_path: path })).error).not.toBeNull();
+  expect((await admin.from("entries").insert({ id, user_id: account.id, storage_path: path, preview_text: "private", word_count: 2, char_count: 12 })).error).toBeNull();
   expect((await bClient.from("entries").select("*").eq("id", id)).data).toEqual([]);
   expect((await anonymous.from("entries").select("*").eq("id", id)).data ?? []).toEqual([]);
   expect((await bClient.storage.from("notes").download(path)).error).not.toBeNull();

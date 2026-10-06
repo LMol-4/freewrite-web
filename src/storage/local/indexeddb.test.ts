@@ -63,3 +63,14 @@ it("resumes authorized cleanup after interruption, preserving other accounts", a
   expect(await a.list()).toEqual([]); expect((await b.get(other.id))?.body).toBe("retain");
   expect(await claimAccount("a", "new-tab")).toBe(true);
 });
+it("upgrades v2 account entries and pending work unchanged while adding the outbox", async () => {
+  const old = await openDB("freewrite", 2, { upgrade(db) {
+    db.createObjectStore("entries", { keyPath: ["userId", "id"] }).createIndex("account", "userId");
+    db.createObjectStore("pending", { keyPath: ["userId", "entryId"] }).createIndex("account", "userId");
+    db.createObjectStore("preferences", { keyPath: "userId" }); db.createObjectStore("legacy", { keyPath: "id" }); db.createObjectStore("meta", { keyPath: "key" });
+  } });
+  const record = { userId: "a", id: "existing", body: "unchanged", localGeneration: 9, baseServerVersion: null, dirty: true, recovered: false };
+  await old.put("entries", record); await old.put("pending", { userId: "a", entryId: "existing", generation: 9 }); old.close();
+  const db = await openFreewriteDB(); expect(await db.get("entries", ["a", "existing"])).toEqual(record);
+  expect(await db.get("pending", ["a", "existing"])).toMatchObject({ generation: 9 }); expect(await db.count("outbox")).toBe(0);
+});
