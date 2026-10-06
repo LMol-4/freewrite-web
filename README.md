@@ -2,8 +2,8 @@
 
 A browser freewriting editor with email/password accounts, immediate device-local saving,
 cloud-synced entries and theme/font preferences. Cloud publication uses immutable Markdown
-revisions, conditional server versions and replayable mutation receipts. History and recovery
-browsing are the next milestone; recovery records are currently verified programmatically.
+revisions, conditional server versions and replayable mutation receipts. Desktop history supports
+entry switching, New Entry, confirmed deletion and restoring read-only recovered copies.
 
 ## Development
 
@@ -101,9 +101,15 @@ No deployment or push job is included.
 - Metadata is paged by date and ID, including tombstones. Missing list rows never delete local
   writing. Bodies download lazily; an unavailable body is not an empty note. A clean focus refresh
   adopts a downloaded revision only if no local edit intervened. Dirty base versions stay unchanged.
-- Conditional deletion and durable object cleanup exist in storage for M5's delete UI. A stale
+- History shows newest entries first by creation time and ID. Switching and New Entry await local
+  saves; a failed download leaves the current writing visible. New Entry reuses the current blank.
+  Recovered copies appear in a collapsed section; Restore creates a separate editable entry.
+- Confirmed deletion queues conditional publication and durable object cleanup. A stale
   delete requires a new decision. Removal failures remain pending. Recovered entries have separate
   IDs/objects and survive deletion of their original. Unsent blank scratch entries stay local.
+- Switching away can remove an unused, unattempted local blank. Clean published blanks use
+  conditional tombstones. Current, unloaded, recovered, stale or pending-content entries are retained.
+  Escape closes a popup before history; desktop history keeps toolbar controls accessible.
 - “Synced” requires acknowledged entry and preference work; it is not shown for a newer local
   transaction. Page termination delivery is not relied upon; there is no keepalive transport.
 - Offline reload/install support is a later milestone. An open editor can retain local work;

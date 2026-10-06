@@ -68,6 +68,9 @@ test.describe("timer", () => {
     const timerButton = page.locator(".control-item", { hasText: ":" }).first();
 
     await expect(timerButton).toHaveText("15:00");
+    await expect(editor).toBeEditable();
+    await expect(timerButton).toBeEnabled();
+    await expect(page.getByText("Synced", { exact: true })).toBeVisible();
 
     // Install the fake clock only after the app has hydrated — installing it
     // before navigation freezes React's own scheduler and the page never
