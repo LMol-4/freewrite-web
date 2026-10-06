@@ -96,10 +96,28 @@ export function createJournal(userId: string, owner: string) {
     }); },
     delete(entryId: string, expectedGeneration: number) { return transaction(async tx => {
       const entry = await tx.objectStore("entries").get([userId, entryId]);
-      if (!entry || entry.localGeneration !== expectedGeneration) throw Error("Entry changed; review before deleting.");
+      if (!entry || entry.deleted || entry.localGeneration !== expectedGeneration) throw Error("Entry changed; review before deleting.");
       const generation = entry.localGeneration + 1;
       await tx.objectStore("entries").put({ ...entry, deleted: true, dirty: true, deleteVersion: entry.baseServerVersion, localGeneration: generation });
       await tx.objectStore("pending").put({ userId, entryId, generation });
+    }); },
+    cleanupEmpty(entryId: string, expectedGeneration: number, selectedId: string) { return transaction(async tx => {
+      const entries = tx.objectStore("entries");
+      const entry = await entries.get([userId, entryId]);
+      const selected = await entries.get([userId, selectedId]);
+      if (!entry || entryId === selectedId || !selected || selected.deleted || selected.recovered || entry.deleted || entry.recovered ||
+        entry.localGeneration !== expectedGeneration || entry.body === null || entry.body.trim() !== "") return "retained" as const;
+      const attempted = (await tx.objectStore("outbox").index("account").getAll(userId)).some(m => m.entryId === entryId);
+      if (attempted) return "retained" as const;
+      if (entry.baseServerVersion === null) {
+        await entries.delete([userId, entryId]); await tx.objectStore("pending").delete([userId, entryId]);
+        return "removed" as const;
+      }
+      if (entry.dirty || await tx.objectStore("pending").get([userId, entryId])) return "retained" as const;
+      const generation = entry.localGeneration + 1;
+      await entries.put({ ...entry, deleted: true, dirty: true, deleteVersion: entry.baseServerVersion, localGeneration: generation });
+      await tx.objectStore("pending").put({ userId, entryId, generation });
+      return "queued" as const;
     }); },
     cleaned(task: Cleanup) { return transaction(async tx => { await tx.objectStore("cleanup").delete([userId, task.path]); }); },
     async hasPending() {

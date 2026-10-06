@@ -4,6 +4,7 @@ import { generateEntryId } from "../../core/id";
 import { type Entry, type EntryMeta, VersionConflictError } from "../types";
 import type { PreferenceState } from "../preferences";
 import type { Mutation, Cleanup } from "../sync/types";
+import { newestFirst } from "../../core/entry-order";
 
 export interface LocalEntry extends Omit<Entry, "body"> {
   body: string | null;
@@ -142,18 +143,23 @@ export function createIndexedDBEntryStore(userId: string, owner: string) {
   return {
     async list(opts?: { cursor?: import("../types").EntryCursor; limit?: number }) {
       let all = await (await openFreewriteDB()).getAllFromIndex("entries", "account", userId);
-      all.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
-      if (opts?.cursor) { const cursor = opts.cursor; all = all.filter(e => e.createdAt < cursor.createdAt || (e.createdAt === cursor.createdAt && e.id < cursor.id)); }
+      all.sort(newestFirst);
+      if (opts?.cursor) { const cursor = opts.cursor; all = all.filter(e => newestFirst(e, cursor) > 0); }
       return all.slice(0, opts?.limit).map(toMeta);
     },
     async get(id: string) { return (await (await openFreewriteDB()).get("entries", [userId, id])) ?? null; },
     ensureEntry() { return write(async tx => {
       const all = await tx.objectStore("entries").index("account").getAll(userId);
-      const existing = all.filter(e => !e.recovered && !e.deleted).sort((a,b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))[0];
+      const existing = all.filter(e => !e.recovered && !e.deleted).sort(newestFirst)[0];
       if (existing) return existing;
       const entry = makeEntry(userId, NEW_ENTRY_BODY); await put(tx, entry); return entry;
     }); },
     create(input: { body: string; createdAt?: Date }) { return write(async tx => { const entry = makeEntry(userId, input.body, input.createdAt); await put(tx, entry); return entry; }); },
+    restore(id: string, expectedGeneration: number) { return write(async tx => {
+      const source = await tx.objectStore("entries").get([userId, id]);
+      if (!source?.recovered || source.deleted || source.body === null || source.localGeneration !== expectedGeneration) throw Error("Recovered copy changed or is unavailable. Open it again before restoring.");
+      const restored = makeEntry(userId, source.body); await put(tx, restored); return restored;
+    }); },
     update(id: string, body: string, expectedGeneration: number) { return write(async tx => {
       const existing = await tx.objectStore("entries").get([userId, id]);
       if (!existing) throw Error(`entry not found: ${id}`);
