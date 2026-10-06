@@ -100,3 +100,19 @@ describe("formatTime", () => {
     expect(formatTime(0)).toBe("0:00");
   });
 });
+
+it("preserves fractional pauses and ignores toggles during completion", () => {
+  let timer = createTimer(1);
+  timer = pause(start(timer, T0), T0 + 400);
+  expect(timer.remainingSeconds).toBeCloseTo(.6);
+  timer = pause(start(timer, T0 + 1000), T0 + 1400);
+  expect(timer.remainingSeconds).toBeCloseTo(.2);
+  timer = toggle(start(timer, T0 + 2000), T0 + 2300);
+  expect(timer.status).toBe("complete");
+  expect(toggle(timer, T0 + 2400)).toEqual(timer);
+});
+it("backward clock steps never increase remaining time; forward jumps may complete", () => {
+  const running = tick(start(createTimer(10), T0), T0 + 3000);
+  expect(tick(running, T0 - 5000).remainingSeconds).toBe(7);
+  expect(tick(running, T0 + 20000).status).toBe("complete");
+});

@@ -26,7 +26,7 @@ export function createTimer(
 
 /** T1: click starts the countdown. No-op if already running. */
 export function start(state: TimerState, now: number): TimerState {
-  if (state.status === "running") return state;
+  if (state.status !== "idle") return state;
   return {
     ...state,
     status: "running",
@@ -39,7 +39,7 @@ export function start(state: TimerState, now: number): TimerState {
 export function pause(state: TimerState, now: number): TimerState {
   if (state.status !== "running") return state;
   const ticked = tick(state, now);
-  return { ...ticked, status: "idle", startedAt: null };
+  return ticked.status === "complete" ? ticked : { ...ticked, status: "idle", startedAt: null };
 }
 
 /** T1: click toggles run/pause. */
@@ -54,8 +54,8 @@ export function toggle(state: TimerState, now: number): TimerState {
  */
 export function tick(state: TimerState, now: number): TimerState {
   if (state.status !== "running" || state.startedAt === null) return state;
-  const elapsed = Math.floor((now - state.startedAt) / 1000);
-  const remaining = Math.max(0, state.remainingAtStart - elapsed);
+  const elapsed = Math.max(0, (now - state.startedAt) / 1000);
+  const remaining = Math.max(0, Math.min(state.remainingSeconds, state.remainingAtStart - elapsed));
   if (remaining <= 0) {
     return { ...state, status: "complete", remainingSeconds: 0, startedAt: null };
   }
@@ -72,6 +72,7 @@ export function reset(
 
 /** `js/renderer.js:304-308`: `M:SS`, seconds zero-padded, minutes not. */
 export function formatTime(seconds: number): string {
+  seconds = Math.ceil(seconds);
   const minutes = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${minutes}:${secs.toString().padStart(2, "0")}`;

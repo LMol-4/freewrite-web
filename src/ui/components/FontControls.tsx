@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode, useRef, useState } from "react";
+import { Fragment, type ReactNode, useCallback, useRef, useState } from "react";
 import {
   FONT_SIZES,
   type FontMode,
@@ -37,7 +37,8 @@ export function useFontControlItems({
     fontMode === "random" ? pickRandomFont() : null,
   );
   const [sizePopupOpen, setSizePopupOpen] = useState(false);
-  const sizeButtonRef = useRef<HTMLSpanElement>(null);
+  const closeSize = useCallback(() => setSizePopupOpen(false), []);
+  const sizeButtonRef = useRef<HTMLButtonElement>(null);
 
   // §18 resolved question 5 / D12: only the mode syncs — each device re-rolls
   // its own pick, including when "random" is restored from localStorage.
@@ -59,24 +60,25 @@ export function useFontControlItems({
 
   function fontItem(mode: FontMode, label: string) {
     return (
-      <span
+      <button type="button"
         key={mode}
+        aria-pressed={fontMode === mode}
         className="control-item"
         style={{ fontWeight: fontMode === mode ? "bold" : "normal" }}
         onClick={() => onFontModeChange(mode)}
       >
         {label}
-      </span>
+      </button>
     );
   }
 
   const items = [
     <Fragment key="size">
-      <span ref={sizeButtonRef} className="control-item" onClick={() => setSizePopupOpen((open) => !open)}>
+      <button type="button" ref={sizeButtonRef} aria-expanded={sizePopupOpen} aria-label="Font size" className="control-item" onClick={() => setSizePopupOpen((open) => !open)}>
         {fontSize}px
-      </span>
+      </button>
       {sizePopupOpen && (
-        <Popup anchorRef={sizeButtonRef} onClose={() => setSizePopupOpen(false)}>
+        <Popup anchorRef={sizeButtonRef} onClose={closeSize}>
           {FONT_SIZES.map((size) => (
             <button
               key={size}
@@ -95,14 +97,15 @@ export function useFontControlItems({
     fontItem("lato", "Lato"),
     fontItem("system", "System"),
     fontItem("serif", "Serif"),
-    <span
+    <button type="button"
       key="random"
+      aria-pressed={fontMode === "random"}
       className="control-item"
       style={{ fontWeight: fontMode === "random" ? "bold" : "normal" }}
       onClick={handleRandomClick}
     >
       {randomPick ? `Random [${randomPick}]` : "Random"}
-    </span>,
+    </button>,
   ];
 
   const fontFamily = resolveFontFamily(fontMode, randomPick ?? undefined);

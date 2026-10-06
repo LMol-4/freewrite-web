@@ -6,8 +6,8 @@ interface TimerButtonProps {
 /** T1: display and toggle. */
 export function TimerButton({ label, onClick }: TimerButtonProps) {
   return (
-    <span className="control-item" onClick={onClick}>
+    <button type="button" className="control-item" onClick={onClick}>
       {label}
-    </span>
+    </button>
   );
 }

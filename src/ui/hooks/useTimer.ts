@@ -25,7 +25,9 @@ export function useTimer() {
     const interval = setInterval(() => {
       setState((current) => tick(current, Date.now()));
     }, TICK_INTERVAL_MS);
-    return () => clearInterval(interval);
+    const wake = () => setState(current => tick(current, Date.now()));
+    window.addEventListener("focus", wake);
+    return () => { clearInterval(interval); window.removeEventListener("focus", wake); };
   }, [state.status]);
 
   useEffect(() => {

@@ -9,8 +9,8 @@ interface ThemeToggleProps {
 export function ThemeToggle({ theme, onToggle }: ThemeToggleProps) {
   const label = otherTheme(theme) === "dark" ? "Dark Mode" : "Light Mode";
   return (
-    <span className="control-item" onClick={onToggle}>
+    <button type="button" className="control-item" onClick={onToggle}>
       {label}
-    </span>
+    </button>
   );
 }
