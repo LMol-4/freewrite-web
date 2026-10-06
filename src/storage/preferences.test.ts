@@ -37,3 +37,8 @@ describe("parseStoredPreferences", () => {
     expect(result.clientUpdatedAt).toBe(new Date(0).toISOString());
   });
 });
+
+it("malformed and invalid timestamps never participate in ordering", () => {
+  expect(parseStoredPreferences("null")).toMatchObject(DEFAULT_PREFERENCES);
+  expect(parseStoredPreferences('{"clientUpdatedAt":"invalid"}').clientUpdatedAt).toBe(new Date(0).toISOString());
+});

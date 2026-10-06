@@ -22,3 +22,14 @@ it("failure to inspect writing fails closed", async () => {
     signOut, cleanup: vi.fn() })).rejects.toThrow("storage unavailable");
   expect(signOut).not.toHaveBeenCalled();
 });
+
+it("acknowledges successful local sign-out only after cleanup", async () => {
+  const order: string[] = [];
+  expect(await safeSignOut({ hasUnsyncedWriting: async () => true, discard: true,
+    signOut: async () => { order.push("auth"); return { error: null }; }, cleanup: async () => { order.push("cleanup"); } })).toBe("signed-out");
+  expect(order).toEqual(["auth", "cleanup"]);
+});
+it("failed local cleanup is surfaced rather than acknowledged as success", async () => {
+  await expect(safeSignOut({ hasUnsyncedWriting: async () => false, discard: false,
+    signOut: async () => ({ error: null }), cleanup: async () => { throw Error("cleanup failed"); } })).rejects.toThrow("cleanup failed");
+});

@@ -1,100 +1,65 @@
 import "fake-indexeddb/auto";
-import { beforeEach, describe, expect, it } from "vitest";
-import { clearAllEntries, createIndexedDBEntryStore } from "./indexeddb";
+import { openDB, deleteDB } from "idb";
+import { beforeEach, expect, it } from "vitest";
+import { claimAccount, clearAccount, closeDatabase, createIndexedDBEntryStore, openFreewriteDB, renewAccount, resumeAccount, setAccountLock } from "./indexeddb";
 import { VersionConflictError } from "../types";
-
-// `indexedDB.deleteDatabase` blocks until every open connection closes, and
-// stores here never close theirs — so clear via the public interface instead.
-beforeEach(async () => {
-  const store = createIndexedDBEntryStore();
-  const metas = await store.list();
-  await Promise.all(metas.map((meta) => store.delete(meta.id)));
+beforeEach(async () => { await closeDatabase(); await deleteDB("freewrite"); });
+async function store(user = "a", owner = "tab-a") { expect(await claimAccount(user, owner)).toBe(true); return createIndexedDBEntryStore(user, owner); }
+it("atomically creates one blank under concurrent initialization", async () => {
+  const s = await store(); const results = await Promise.all([s.ensureEntry(), s.ensureEntry(), s.ensureEntry()]);
+  expect(new Set(results.map(e => e.id)).size).toBe(1);
+});
+it("commits body and pending generation together and checks stale writers", async () => {
+  const s = await store(); const e = await s.ensureEntry(); const saved = await s.update(e.id, "complete body", e.localGeneration);
+  expect(await s.get(e.id)).toEqual(saved);
+  expect(await (await openFreewriteDB()).get("pending", ["a", e.id])).toMatchObject({ generation: saved.localGeneration });
+  await expect(s.update(e.id, "stale", e.localGeneration)).rejects.toBeInstanceOf(VersionConflictError);
+  expect((await s.get(e.id))?.body).toBe("complete body");
+});
+it("isolates accounts and cleanup leaves other accounts untouched", async () => {
+  const a = await store(); const b = await store("b", "tab-b");
+  const ea = await a.create({ body: "private A" }); const eb = await b.create({ body: "private B" });
+  expect(await b.get(ea.id)).toBeNull(); expect(await a.get(eb.id)).toBeNull();
+  await clearAccount("a"); expect(await a.list()).toHaveLength(0); expect((await b.get(eb.id))?.body).toBe("private B");
+});
+it("quarantines exact v1 records without exposing or deleting them", async () => {
+  const old = await openDB("freewrite", 1, { upgrade(db) { db.createObjectStore("entries", { keyPath: "id" }); } });
+  const legacy = { id: "old", body: "owner unknown", custom: "preserve this too" };
+  await old.put("entries", legacy); old.close();
+  const s = await store(); expect(await s.list()).toEqual([]);
+  await clearAccount("a"); const db = await openFreewriteDB();
+  expect(await db.get("legacy", "old")).toEqual(legacy);
+  expect(await db.get("meta", "legacy")).toMatchObject({ count: 1 });
+});
+it("fallback lease takeover fences the old tab, including late acknowledgements", async () => {
+  const a = await store(); const e = await a.ensureEntry();
+  expect(await claimAccount("a", "tab-b")).toBe(false);
+  expect(await claimAccount("a", "tab-b", Date.now() + 16000)).toBe(true);
+  expect(await renewAccount("a", "tab-a", Date.now() + 40000)).toBe(false);
+  await expect(a.update(e.id, "old tab", e.localGeneration)).rejects.toThrow("locked");
+  expect((await a.get(e.id))?.body).toBe("\n\n");
+});
+it("persistent sign-out lock blocks writes and can be cancelled without data loss", async () => {
+  const s = await store(); const e = await s.create({ body: "keep" });
+  await setAccountLock("a", "tab-a", true);
+  expect(await claimAccount("a", "tab-b", Date.now() + 20000)).toBe(false);
+  await expect(s.update(e.id, "blocked", 1)).rejects.toThrow("locked");
+  await setAccountLock("a", "tab-a", false);
+  expect((await s.get(e.id))?.body).toBe("keep");
+});
+it("aborted transaction leaves both body and pending unchanged", async () => {
+  const s = await store(); const e = await s.create({ body: "before" }); const db = await openFreewriteDB();
+  const tx = db.transaction(["entries", "pending"], "readwrite");
+  await tx.objectStore("entries").put({ ...e, body: "not committed" }); tx.abort(); await tx.done.catch(() => {});
+  expect((await s.get(e.id))?.body).toBe("before");
+  expect(await db.get("pending", ["a", e.id])).toMatchObject({ generation: 1 });
 });
 
-describe("createIndexedDBEntryStore", () => {
-  it("create returns an entry seeded from the body", async () => {
-    const store = createIndexedDBEntryStore();
-    const entry = await store.create({ body: "hello world" });
-    expect(entry.body).toBe("hello world");
-    expect(entry.previewText).toBe("hello world");
-    expect(entry.wordCount).toBe(2);
-    expect(entry.charCount).toBe(11);
-    expect(entry.version).toBe(1);
-    expect(entry.id).toBeTruthy();
-  });
-
-  it("get retrieves a created entry by id", async () => {
-    const store = createIndexedDBEntryStore();
-    const created = await store.create({ body: "hi" });
-    const fetched = await store.get(created.id);
-    expect(fetched).toEqual(created);
-  });
-
-  it("get returns null for an unknown id", async () => {
-    const store = createIndexedDBEntryStore();
-    expect(await store.get("does-not-exist")).toBeNull();
-  });
-
-  it("list returns metadata only, newest first", async () => {
-    const store = createIndexedDBEntryStore();
-    const first = await store.create({ body: "first", createdAt: new Date("2024-01-01") });
-    const second = await store.create({ body: "second", createdAt: new Date("2024-01-02") });
-    const list = await store.list();
-    expect(list.map((e) => e.id)).toEqual([second.id, first.id]);
-    expect(list[0]).not.toHaveProperty("body");
-  });
-
-  it("list respects limit and before", async () => {
-    const store = createIndexedDBEntryStore();
-    await store.create({ body: "a", createdAt: new Date("2024-01-01") });
-    const b = await store.create({ body: "b", createdAt: new Date("2024-01-02") });
-    await store.create({ body: "c", createdAt: new Date("2024-01-03") });
-
-    expect(await store.list({ limit: 1 })).toHaveLength(1);
-
-    const before = await store.list({ before: new Date("2024-01-03") });
-    expect(before.map((e) => e.id)).toEqual([b.id, before[1].id]);
-  });
-
-  it("update rewrites the body and bumps the version", async () => {
-    const store = createIndexedDBEntryStore();
-    const created = await store.create({ body: "one" });
-    const updated = await store.update(created.id, "one two", created.version);
-    expect(updated.body).toBe("one two");
-    expect(updated.wordCount).toBe(2);
-    expect(updated.version).toBe(2);
-  });
-
-  it("update throws VersionConflictError on a stale version", async () => {
-    const store = createIndexedDBEntryStore();
-    const created = await store.create({ body: "one" });
-    await store.update(created.id, "one two", created.version);
-    await expect(store.update(created.id, "one two three", created.version)).rejects.toBeInstanceOf(
-      VersionConflictError,
-    );
-  });
-
-  it("update throws for an id that was never created", async () => {
-    const store = createIndexedDBEntryStore();
-    await expect(store.update("missing", "text", 1)).rejects.toThrow("entry not found");
-  });
-
-  it("delete removes the entry", async () => {
-    const store = createIndexedDBEntryStore();
-    const created = await store.create({ body: "gone soon" });
-    await store.delete(created.id);
-    expect(await store.get(created.id)).toBeNull();
-  });
-
-  it("clearAllEntries empties the store without leaving it unusable", async () => {
-    const store = createIndexedDBEntryStore();
-    await store.create({ body: "one" });
-    await store.create({ body: "two" });
-
-    await clearAllEntries();
-
-    expect(await store.list()).toHaveLength(0);
-    const created = await store.create({ body: "after wipe" });
-    expect(await store.get(created.id)).toEqual(created);
-  });
+it("resumes authorized cleanup after interruption, preserving other accounts", async () => {
+  const a = await store(); const b = await store("b", "tab-b");
+  await a.create({ body: "discard authorized" }); const other = await b.create({ body: "retain" });
+  await setAccountLock("a", "tab-a", true, true);
+  await closeDatabase(); await resumeAccount("a");
+  expect(await a.list()).toEqual([]); expect((await b.get(other.id))?.body).toBe("retain");
+  expect(await claimAccount("a", "new-tab")).toBe(true);
 });

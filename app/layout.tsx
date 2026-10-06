@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Script from "next/script";
+
 import { lato, notoSerifKannada, ebGaramond, libreBaskerville } from "@/src/fonts";
 import "./globals.css";
 
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 const THEME_INIT_SCRIPT = `
 (function () {
   try {
-    var raw = localStorage.getItem("freewrite:prefs");
+    var raw = localStorage.getItem("freewrite:active-theme");
     var theme = "light";
     if (raw) {
       var parsed = JSON.parse(raw);
@@ -40,12 +40,11 @@ export default function RootLayout({
     <html
       lang="en"
       data-theme="light"
+      suppressHydrationWarning
       className={`${lato.variable} ${notoSerifKannada.variable} ${ebGaramond.variable} ${libreBaskerville.variable}`}
     >
+      <head><script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} /></head>
       <body>
-        <Script id="theme-init" strategy="beforeInteractive">
-          {THEME_INIT_SCRIPT}
-        </Script>
         {children}
       </body>
     </html>

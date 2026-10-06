@@ -1,61 +1,12 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import { pickPlaceholder } from "@/src/core/placeholders";
-import { otherTheme } from "@/src/core/theme";
-import { Editor } from "@/src/ui/components/Editor";
-import { useFontControlItems } from "@/src/ui/components/FontControls";
-import { SignOutButton } from "@/src/ui/components/SignOutButton";
-import { ThemeToggle } from "@/src/ui/components/ThemeToggle";
-import { TimerButton } from "@/src/ui/components/TimerButton";
-import { Toolbar } from "@/src/ui/components/Toolbar";
-import { useEntries } from "@/src/ui/hooks/useEntries";
-import { usePreferences } from "@/src/ui/hooks/usePreferences";
-import { useSignOut } from "@/src/ui/hooks/useSignOut";
-import { useTimer } from "@/src/ui/hooks/useTimer";
-
-export default function Home() {
-  const { entry, setBody } = useEntries();
-  const { theme, font, fontSize, setTheme, setFont, setFontSize } = usePreferences();
-  const timer = useTimer();
-  const signOut = useSignOut();
-  const [placeholder] = useState(() => pickPlaceholder());
-
-  // H1/H2: the blocking script in the root layout sets `data-theme` before
-  // first paint; this keeps it in sync with every toggle after that.
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
-
-  const fontControls = useFontControlItems({
-    fontMode: font,
-    fontSize,
-    onFontModeChange: setFont,
-    onFontSizeChange: setFontSize,
-  });
-
-  return (
-    <div className="app-container">
-      <div className="main-content">
-        {entry && (
-          <Editor
-            value={entry.body}
-            onChange={setBody}
-            placeholder={placeholder}
-            fontFamily={fontControls.fontFamily}
-            fontSize={fontSize}
-            faded={timer.status === "complete"}
-          />
-        )}
-        <Toolbar
-          leftControls={fontControls.items}
-          rightControls={[
-            <TimerButton key="timer" label={timer.label} onClick={timer.toggle} />,
-            <ThemeToggle key="theme" theme={theme} onToggle={() => setTheme(otherTheme(theme))} />,
-            <SignOutButton key="sign-out" onClick={signOut} />,
-          ]}
-        />
-      </div>
-    </div>
-  );
+import { redirect } from "next/navigation";
+import { createClient } from "@/src/lib/supabase/server";
+import { Writer } from "@/src/ui/components/Writer";
+export default async function Home() {
+  const { data, error } = await (await createClient()).auth.getUser();
+  if (error?.name === "AuthRetryableFetchError" || (error?.status ?? 0) >= 500) {
+    return <main className="auth-page"><div><h1>Cannot check your session</h1><p>Your local writing has been retained. Check your connection and retry.</p><form action="/" method="get"><button type="submit">Retry</button></form></div></main>;
+  }
+  if (error || !data.user) redirect("/sign-in");
+  return <Writer key={data.user.id} userId={data.user.id} initialPlaceholder={pickPlaceholder()} />;
 }

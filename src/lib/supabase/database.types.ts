@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.15"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -100,6 +95,7 @@ export type Database = {
           theme: string
           updated_at: string
           user_id: string
+          version: number
         }
         Insert: {
           client_updated_at?: string
@@ -108,6 +104,7 @@ export type Database = {
           theme?: string
           updated_at?: string
           user_id: string
+          version?: number
         }
         Update: {
           client_updated_at?: string
@@ -116,6 +113,7 @@ export type Database = {
           theme?: string
           updated_at?: string
           user_id?: string
+          version?: number
         }
         Relationships: []
       }
@@ -124,6 +122,46 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_preferences: {
+        Args: never
+        Returns: {
+          client_updated_at: string
+          font: string
+          font_size: number
+          theme: string
+          updated_at: string
+          user_id: string
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "preferences"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      publish_preferences: {
+        Args: {
+          expected_version: number
+          patch: Json
+          requested_user_id: string
+        }
+        Returns: {
+          client_updated_at: string
+          font: string
+          font_size: number
+          theme: string
+          updated_at: string
+          user_id: string
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "preferences"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       save_entry_meta: {
         Args: {
           p_char_count: number

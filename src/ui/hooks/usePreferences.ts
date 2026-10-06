@@ -1,119 +1,95 @@
 "use client";
-
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createClient } from "../../lib/supabase/client";
+import { cacheTheme, DEFAULT_PREFERENCES, patchPreferences, PreferenceSync, readPreferences, type Preferences } from "../../storage/preferences";
 import type { FontMode, FontSize } from "../../core/fonts";
 import type { Theme } from "../../core/theme";
-import {
-  DEFAULT_PREFERENCES,
-  fetchServerPreferences,
-  parseStoredPreferences,
-  readLocalRaw,
-  upsertServerPreferences,
-  writeLocalPreferences,
-  type Preferences,
-} from "../../storage/preferences";
 
-/** §6 sync strategy step 3: debounce upserts rather than one per keystroke-equivalent change. */
-const UPSERT_DEBOUNCE_MS = 1000;
-
-// `useSyncExternalStore` requires `getSnapshot` to return a stable reference
-// when nothing has changed, so the parsed value is cached against the raw
-// string it came from.
-let cachedRaw: string | null | undefined;
-let cachedPrefs: Preferences = DEFAULT_PREFERENCES;
-const listeners = new Set<() => void>();
-
-function getSnapshot(): Preferences {
-  const raw = readLocalRaw();
-  if (raw !== cachedRaw) {
-    cachedRaw = raw;
-    const stored = parseStoredPreferences(raw);
-    cachedPrefs = { theme: stored.theme, font: stored.font, fontSize: stored.fontSize };
-  }
-  return cachedPrefs;
-}
-
-/** Pre-paint value on both the server render and the client's first hydration pass. */
-function getServerSnapshot(): Preferences {
-  return DEFAULT_PREFERENCES;
-}
-
-function subscribe(onStoreChange: () => void): () => void {
-  listeners.add(onStoreChange);
-  return () => listeners.delete(onStoreChange);
-}
-
-function write(prefs: Preferences): string {
-  const stored = writeLocalPreferences(prefs);
-  cachedRaw = undefined;
-  listeners.forEach((listener) => listener());
-  return stored.clientUpdatedAt;
-}
-
-/**
- * §6 sync strategy: localStorage is the fast path and pre-paint cache
- * (already applied by the root layout's blocking script, M2); this hook adds
- * the boot reconcile (step 2) and the debounced upsert on change (step 3).
- */
-export function usePreferences() {
-  const prefs = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const upsertTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const server = await fetchServerPreferences();
-      if (cancelled || !server) return;
-
-      const local = parseStoredPreferences(readLocalRaw());
-      if (new Date(server.clientUpdatedAt).getTime() > new Date(local.clientUpdatedAt).getTime()) {
-        writeLocalPreferences(
-          { theme: server.theme, font: server.font, fontSize: server.fontSize },
-          server.clientUpdatedAt,
-        );
-        cachedRaw = undefined;
-        listeners.forEach((listener) => listener());
+export function usePreferences(userId: string, owner: string | null, enabled: boolean) {
+  const [prefs, setPrefs] = useState(DEFAULT_PREFERENCES);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState("Loading preferences…");
+  const pending = useRef<Partial<Preferences>>({});
+  const inFlight = useRef<Partial<Preferences>>({});
+  const local = useRef<Promise<void> | null>(null);
+  const sync = useRef<PreferenceSync | null>(null);
+  const schedule = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const active = useRef(false);
+  const paused = useRef(false);
+  const retryRemote = useRef<() => void>(() => {});
+  const refresh = useCallback(async () => {
+    const state = await readPreferences(userId);
+    if (!active.current) return;
+    if (!owner && state.version === 0 && !Object.keys(state.pending).length) return;
+    const values = { ...state.values, ...inFlight.current, ...pending.current };
+    setPrefs(values); cacheTheme(userId, values.theme);
+    const volatile = Object.keys(inFlight.current).length || Object.keys(pending.current).length;
+    setStatus(volatile ? "Preferences not yet saved on this device" : Object.keys(state.pending).length ? "Preferences pending" : "Preferences synced");
+  }, [userId, owner]);
+  const flushLocal = useCallback(async () => {
+    if (local.current) return local.current;
+    local.current = (async () => {
+      while (Object.keys(pending.current).length) {
+        if (!owner) throw Error("Preferences are locked");
+        const patch = pending.current; pending.current = {}; inFlight.current = patch;
+        try { await patchPreferences(userId, owner, patch); }
+        catch (reason) { pending.current = { ...patch, ...pending.current }; throw reason; }
+        finally { inFlight.current = {}; }
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+      await refresh();
+    })().finally(() => { local.current = null; });
+    return local.current;
+  }, [userId, owner, refresh]);
+  const flush = useCallback(async () => { await flushLocal(); await sync.current?.flush(); }, [flushLocal]);
   useEffect(() => {
-    return () => {
-      if (upsertTimeoutRef.current) clearTimeout(upsertTimeoutRef.current);
+    active.current = enabled;
+    if (!enabled) return;
+    let retry = 1000;
+    let cancelled = false;
+    const run = async () => {
+      if (paused.current || cancelled) return;
+      try { await flush(); if (!cancelled) { setError(null); retry = 1000; } }
+      catch { if (!cancelled) {
+        setError(Object.keys(pending.current).length ? "Preferences could not be saved on this device. Retrying; keep this tab open." : "Preferences could not sync. Changes are kept on this device; retrying.");
+        schedule.current = setTimeout(() => { void run(); }, retry); retry = Math.min(30000, retry * 2);
+      } }
     };
-  }, []);
-
-  const scheduleUpsert = useCallback((updated: Preferences, clientUpdatedAt: string) => {
-    if (upsertTimeoutRef.current) clearTimeout(upsertTimeoutRef.current);
-    upsertTimeoutRef.current = setTimeout(() => {
-      upsertServerPreferences(updated, clientUpdatedAt);
-    }, UPSERT_DEBOUNCE_MS);
-  }, []);
-
-  const setTheme = useCallback(
-    (theme: Theme) => {
-      const updated = { ...getSnapshot(), theme };
-      scheduleUpsert(updated, write(updated));
-    },
-    [scheduleUpsert],
-  );
-  const setFont = useCallback(
-    (font: FontMode) => {
-      const updated = { ...getSnapshot(), font };
-      scheduleUpsert(updated, write(updated));
-    },
-    [scheduleUpsert],
-  );
-  const setFontSize = useCallback(
-    (fontSize: FontSize) => {
-      const updated = { ...getSnapshot(), fontSize };
-      scheduleUpsert(updated, write(updated));
-    },
-    [scheduleUpsert],
-  );
-
-  return { theme: prefs.theme, font: prefs.font, fontSize: prefs.fontSize, setTheme, setFont, setFontSize };
+    retryRemote.current = () => { void run(); };
+    if (owner) {
+      const supabase = createClient();
+      sync.current = new PreferenceSync(userId, owner, {
+        async fetch() {
+          const { data, error } = await supabase.rpc("get_preferences");
+          if (error || !data?.[0]) throw error ?? Error("Preferences unavailable");
+          const row = data[0];
+          if (row.user_id !== userId) throw Error("Account changed");
+          return { version: row.version, values: { theme: row.theme as Theme, font: row.font as FontMode, fontSize: row.font_size as FontSize } };
+        },
+        async publish(version, patch) {
+          const { data, error } = await supabase.rpc("publish_preferences", { requested_user_id: userId, expected_version: version, patch });
+          if (error) throw error;
+          const row = data?.[0];
+          return row ? { version: row.version, values: { theme: row.theme as Theme, font: row.font as FontMode, fontSize: row.font_size as FontSize } } : null;
+        },
+      }, () => { void refresh().catch(() => {}); });
+    }
+    void refresh().then(run).catch(() => setError("Local preferences unavailable. Please retry."));
+    const wake = () => { if (document.visibilityState !== "hidden") void run(); };
+    window.addEventListener("focus", wake); window.addEventListener("online", wake); document.addEventListener("visibilitychange", wake);
+    return () => { cancelled = true; active.current = false; if (schedule.current) clearTimeout(schedule.current); window.removeEventListener("focus", wake); window.removeEventListener("online", wake); document.removeEventListener("visibilitychange", wake); sync.current = null; };
+  }, [userId, owner, enabled, refresh, flush]);
+  const patch = useCallback((value: Partial<Preferences>) => {
+    if (!owner || !active.current || paused.current) return;
+    pending.current = { ...pending.current, ...value };
+    setPrefs(current => ({ ...current, ...value }));
+    if (value.theme) cacheTheme(userId, value.theme);
+    setStatus("Saving preferences on this device");
+    void flushLocal().catch(() => setError("Preferences could not be saved on this device. Retrying; keep this tab open."));
+    if (schedule.current) clearTimeout(schedule.current);
+    schedule.current = setTimeout(() => retryRemote.current(), 1000);
+  }, [userId, owner, flushLocal]);
+  return { ...prefs, error, status, flush,
+    quiesce: () => { paused.current = true; if (schedule.current) clearTimeout(schedule.current); },
+    resume: () => { paused.current = false; },
+    setTheme: (theme: Theme) => patch({ theme }), setFont: (font: FontMode) => patch({ font }), setFontSize: (fontSize: FontSize) => patch({ fontSize }) };
 }
