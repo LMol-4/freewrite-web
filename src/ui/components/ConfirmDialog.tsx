@@ -1,5 +1,5 @@
 import { type KeyboardEvent, type ReactNode, type RefObject, useEffect, useId, useRef } from "react";
-export function ConfirmDialog({ children, onCancel, openerRef }: { children: ReactNode; onCancel: () => void; openerRef: RefObject<HTMLButtonElement | null> }) {
+export function ConfirmDialog({ children, onCancel, openerRef, title = "Unsynced local changes" }: { children: ReactNode; onCancel: () => void; openerRef: RefObject<HTMLButtonElement | null>; title?: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
   useEffect(() => {
@@ -17,6 +17,6 @@ export function ConfirmDialog({ children, onCancel, openerRef }: { children: Rea
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }
   return <dialog ref={ref} aria-labelledby={id} onKeyDown={trap} onCancel={event => { event.preventDefault(); onCancel(); }}>
-    <h2 id={id}>Unsynced local changes</h2>{children}
+    <h2 id={id}>{title}</h2>{children}
   </dialog>;
 }

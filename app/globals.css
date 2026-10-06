@@ -65,6 +65,7 @@ body {
 }
 
 .main-content {
+  min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -351,3 +352,28 @@ dialog button { margin: 12px 12px 0 0; padding: 10px; }
 [role="status"], [role="alert"] { font-size: 13px; margin: 4px 16px; }
 @media (max-width: 640px) { button { min-height: 44px; min-width: 44px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+
+.history-panel {
+  position: absolute; right: 0; top: 0; width: 250px; max-width: 100%; height: 100%;
+  background: var(--sidebar-bg); box-shadow: -2px 0 10px var(--sidebar-shadow);
+  z-index: 900; overflow-y: auto; animation: history-enter .2s ease;
+}
+@media (min-width: 641px) { .history-visible .main-content { margin-right: 250px; } }
+@keyframes history-enter { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.history-header { display: flex; align-items: center; padding: 15px; gap: 8px; border-bottom: 1px solid var(--separator-color); }
+.history-header h2 { flex: 1; font-size: 16px; font-weight: normal; }
+.history-header button { background: none; border: 0; font-size: 20px; min-width: 32px; min-height: 32px; }
+.entries-list { list-style: none; padding: 10px 0; margin: 0; }
+.entry-item { display: flex; align-items: center; transition: background-color .2s; }
+.entry-item:hover, .entry-item:focus-within { background: var(--entry-hover-bg); }
+.entry-item.selected { background: var(--entry-selected-bg); }
+.entry-open { min-width: 0; flex: 1; text-align: left; padding: 10px 0 10px 15px; background: none; border: 0; }
+.entry-date { display: block; font-size: 13px; margin-bottom: 2px; }
+.entry-preview { display: block; font-size: 12px; color: var(--entry-preview-color); overflow-wrap: anywhere; }
+.entry-availability { display: block; font-size: 11px; color: var(--entry-preview-color); }
+.entry-delete { width: 44px; min-width: 44px; height: 44px; border: 0; background: none; opacity: 0; }
+.entry-item:hover .entry-delete, .entry-item:focus-within .entry-delete { opacity: .65; }
+.entry-delete:focus-visible { opacity: 1; }
+.recovered-history { border-top: 1px solid var(--separator-color); }
+.recovered-history summary { cursor: pointer; padding: 15px; font-size: 13px; }
+@media (hover: none) { .entry-delete { opacity: .5; } }
