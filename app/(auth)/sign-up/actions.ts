@@ -1,5 +1,6 @@
 "use server";
 
+import { appOrigin, emailInput, passwordInput } from "@/src/lib/auth/validation";
 import { headers } from "next/headers";
 
 import { createClient } from "@/src/lib/supabase/server";
@@ -8,10 +9,12 @@ export type SignUpState = { status: "idle" } | { status: "error"; message: strin
 
 export async function signUp(_prevState: SignUpState, formData: FormData): Promise<SignUpState> {
   const supabase = await createClient();
-  const origin = (await headers()).get("origin");
+  let origin: string, email: string, password: string;
+  try { origin = appOrigin((await headers()).get("origin")); email = emailInput(formData); password = passwordInput(formData); }
+  catch (error) { return { status: "error", message: error instanceof Error ? error.message : "Invalid input" }; }
 
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+
+
 
   const { error } = await supabase.auth.signUp({
     email,

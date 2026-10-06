@@ -9,6 +9,6 @@ export const proxy: NextProxy = (request) => updateSession(request);
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icons|sounds|sw.js|manifest.webmanifest).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icons|sounds|sw.js|manifest.webmanifest|offline).*)",
   ],
 };
