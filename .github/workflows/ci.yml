@@ -30,6 +30,8 @@ jobs:
         run: node scripts/local-test.mjs start
       - name: Replay local migrations
         run: node scripts/local-test.mjs reset
+      - name: Verify upgrade preserves existing data
+        run: node scripts/local-test.mjs upgrade-check
       - name: Build with local backend
         run: node scripts/local-test.mjs build
       - name: Install matching browsers
