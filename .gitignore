@@ -54,3 +54,6 @@ next-env.d.ts
 # planning docs — local only, never committed
 PLAN.md
 PROGRESS.md
+
+# Disposable loopback-only integration stack
+/.local-test/

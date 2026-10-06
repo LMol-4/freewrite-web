@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test.describe("editor", () => {
   test("shows a placeholder that hides once there's text, and text survives a reload", async ({ page }) => {
@@ -15,8 +15,7 @@ test.describe("editor", () => {
     await editor.pressSequentially("what a nice place to write things down");
     await expect(placeholder).toBeHidden();
 
-    // let the 250ms local-save debounce land before reloading
-    await page.waitForTimeout(500);
+    await expect(page.getByRole("status", { name: "" }).filter({ hasText: /^Saved on this device$/ })).toBeVisible();
     await page.reload();
 
     await expect(page.locator("textarea.editor")).toHaveValue(/what a nice place to write things down/);
@@ -35,6 +34,7 @@ test.describe("fonts and size", () => {
 
     await expect(editor).toHaveCSS("font-size", "24px");
 
+    await expect(page.getByText("Preferences synced", { exact: true })).toBeVisible();
     await page.reload();
 
     await expect(page.locator("textarea.editor")).toHaveCSS("font-size", "24px");
@@ -76,6 +76,7 @@ test.describe("timer", () => {
 
     await timerButton.click();
     await page.clock.fastForward("00:03");
+    await expect(timerButton).not.toHaveText("15:00");
     const runningLabel = await timerButton.textContent();
     expect(runningLabel).not.toBe("15:00");
 

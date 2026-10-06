@@ -1,30 +1,49 @@
 name: CI
-
 on:
   push:
   pull_request:
-
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-
       - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-
-      - name: Install dependencies
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.75.0
+      - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
-
       - name: Typecheck
         run: pnpm exec tsc --noEmit
-
       - name: Lint
         run: pnpm run lint
-
-      - name: Unit + integration tests
+      - name: Unit and transaction tests
         run: pnpm exec vitest run
+      - name: Prepare disposable Supabase
+        run: node scripts/local-test.mjs prepare
+      - name: Start disposable Supabase
+        run: node scripts/local-test.mjs start
+      - name: Replay local migrations
+        run: node scripts/local-test.mjs reset
+      - name: Build with local backend
+        run: node scripts/local-test.mjs build
+      - name: Install matching browsers
+        run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Auth, RLS, Storage and browser tests
+        run: node scripts/local-test.mjs test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-failures
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - name: Stop disposable Supabase
+        if: always()
+        run: node scripts/local-test.mjs stop
