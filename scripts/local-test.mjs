@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync, readdirSync, copyFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { createClient } from '@supabase/supabase-js';
 const root = resolve(import.meta.dirname, '..');
 const work = resolve(root, '.local-test');
 const project = 'freewrite-web-disposable';
@@ -41,6 +42,30 @@ if (task === 'prepare') {
   verifyConfig(); command('supabase', ['start', '--workdir', work, '--exclude', 'vector,logflare,studio,edge-runtime']); environment(); console.log('Disposable local stack ready.');
 } else if (task === 'reset') {
   status(); command('supabase', ['db', 'reset', '--local', '--workdir', work]); environment(); console.log('Disposable local migrations replayed.');
+} else if (task === 'migrate') {
+  status(); command('supabase', ['migration', 'up', '--local', '--workdir', work]); console.log('Disposable local upgrade applied.');
+} else if (task === 'types') {
+  status(); writeFileSync(resolve(root, 'src/lib/supabase/database.types.ts'), command('supabase', ['gen', 'types', 'typescript', '--local', '--workdir', work]));
+} else if (task === 'upgrade-check') {
+  status(); command('supabase', ['db', 'reset', '--local', '--version', '20261006140000', '--workdir', work]);
+  const env = environment();
+  const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.LOCAL_TEST_SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data, error } = await admin.auth.admin.createUser({ email: 'upgrade-fixture@example.test', password: 'Disposable-Upgrade-Only-123', email_confirm: true });
+  if (error) throw error;
+  const userId = data.user.id;
+  const id = 'b322c5c0-005a-430f-8b0a-b1a48fc058af';
+  const path = `${userId}/${id}.md`;
+  try {
+    for (const result of [await admin.storage.from('notes').upload(path, 'legacy complete body'),
+      await admin.from('entries').insert({ id, user_id: userId, storage_path: path, preview_text: 'legacy complete body', version: 7, word_count: 3, char_count: 20 }),
+      await admin.from('preferences').update({ theme: 'dark', font: 'serif', font_size: 24 }).eq('user_id', userId)]) if (result.error) throw result.error;
+    command('supabase', ['migration', 'up', '--local', '--workdir', work]);
+    const row = await admin.from('entries').select('*').eq('id', id).single();
+    const body = await admin.storage.from('notes').download(path);
+    const preferences = await admin.from('preferences').select('*').eq('user_id', userId).single();
+    if (row.error || row.data.version !== 7 || row.data.storage_path !== path || row.data.revision_id !== null || row.data.preview_text !== 'legacy complete body' || body.error || await body.data.text() !== 'legacy complete body' || preferences.data?.theme !== 'dark' || preferences.data?.font_size !== 24) throw Error('Upgrade did not preserve the representative legacy data');
+    console.log('Forward upgrade preserved legacy metadata/body and preferences.');
+  } finally { await admin.storage.from('notes').remove([path]); await admin.auth.admin.deleteUser(userId); }
 } else if (task === 'stop') {
   verifyConfig(); command('supabase', ['stop', '--workdir', work]); console.log('Disposable local stack stopped; volumes retained.');
 } else if (task === 'build' || task === 'test') {

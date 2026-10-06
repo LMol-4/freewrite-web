@@ -36,13 +36,16 @@ export type Database = {
     Tables: {
       entries: {
         Row: {
+          body_sha256: string | null
           char_count: number
           client_updated_at: string
           conflict_of: string | null
           created_at: string
           deleted_at: string | null
           id: string
+          is_recovered: boolean
           preview_text: string
+          revision_id: string | null
           storage_path: string
           updated_at: string
           user_id: string
@@ -50,13 +53,16 @@ export type Database = {
           word_count: number
         }
         Insert: {
+          body_sha256?: string | null
           char_count?: number
           client_updated_at?: string
           conflict_of?: string | null
           created_at?: string
           deleted_at?: string | null
           id?: string
+          is_recovered?: boolean
           preview_text?: string
+          revision_id?: string | null
           storage_path: string
           updated_at?: string
           user_id: string
@@ -64,13 +70,16 @@ export type Database = {
           word_count?: number
         }
         Update: {
+          body_sha256?: string | null
           char_count?: number
           client_updated_at?: string
           conflict_of?: string | null
           created_at?: string
           deleted_at?: string | null
           id?: string
+          is_recovered?: boolean
           preview_text?: string
+          revision_id?: string | null
           storage_path?: string
           updated_at?: string
           user_id?: string
@@ -86,6 +95,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      entry_receipts: {
+        Row: {
+          mutation_id: string
+          request: Json
+          result: Json
+          user_id: string
+        }
+        Insert: {
+          mutation_id: string
+          request: Json
+          result: Json
+          user_id: string
+        }
+        Update: {
+          mutation_id?: string
+          request?: Json
+          result?: Json
+          user_id?: string
+        }
+        Relationships: []
       }
       preferences: {
         Row: {
@@ -140,6 +170,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      publish_entry: {
+        Args: { p_mutation_id: string; p_request: Json }
+        Returns: Json
+      }
       publish_preferences: {
         Args: {
           expected_version: number
@@ -160,36 +194,6 @@ export type Database = {
           to: "preferences"
           isOneToOne: false
           isSetofReturn: true
-        }
-      }
-      save_entry_meta: {
-        Args: {
-          p_char_count: number
-          p_client_updated_at: string
-          p_expected_version: number
-          p_id: string
-          p_preview: string
-          p_word_count: number
-        }
-        Returns: {
-          char_count: number
-          client_updated_at: string
-          conflict_of: string | null
-          created_at: string
-          deleted_at: string | null
-          id: string
-          preview_text: string
-          storage_path: string
-          updated_at: string
-          user_id: string
-          version: number
-          word_count: number
-        }
-        SetofOptions: {
-          from: "*"
-          to: "entries"
-          isOneToOne: true
-          isSetofReturn: false
         }
       }
     }
@@ -327,3 +331,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
