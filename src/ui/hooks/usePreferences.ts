@@ -58,8 +58,10 @@ export function usePreferences(userId: string, owner: string | null, enabled: bo
     retryRemote.current = () => { void run(); };
     if (owner) {
       const supabase = createClient();
+      const authorize = async () => { const { data, error } = await supabase.auth.getUser(); if (error || data.user?.id !== userId) throw Error("Sign in online to sync preferences."); };
       sync.current = new PreferenceSync(userId, owner, {
         async fetch() {
+          await authorize();
           const { data, error } = await supabase.rpc("get_preferences");
           if (error || !data?.[0]) throw error ?? Error("Preferences unavailable");
           const row = data[0];
@@ -67,6 +69,7 @@ export function usePreferences(userId: string, owner: string | null, enabled: bo
           return { version: row.version, values: { theme: row.theme as Theme, font: row.font as FontMode, fontSize: row.font_size as FontSize } };
         },
         async publish(version, patch) {
+          await authorize();
           const { data, error } = await supabase.rpc("publish_preferences", { requested_user_id: userId, expected_version: version, patch });
           if (error) throw error;
           const row = data?.[0];

@@ -5,6 +5,7 @@ import { clearAccount, setAccountLock } from "../../storage/local/indexeddb";
 import { clearLocalPreferences } from "../../storage/preferences";
 import { safeSignOut } from "../../storage/sign-out";
 import { createJournal } from "../../storage/sync/journal";
+import { forgetAccount } from "../../storage/offline-access";
 
 async function bounded<T>(promise: Promise<T>) {
   let timeout: ReturnType<typeof setTimeout>;
@@ -41,7 +42,7 @@ export function useSignOut(options: { userId: string; owner: string | null; flus
         hasUnsyncedWriting: () => journal.hasPending(),
         signOut: async () => {
           const result = await createClient().auth.signOut({ scope: "local" });
-          if (!result.error) { removed = true; setSessionRemoved(true); options.suspend(); await setAccountLock(options.userId, options.owner!, true, true); }
+          if (!result.error) { forgetAccount(options.userId); removed = true; setSessionRemoved(true); options.suspend(); await setAccountLock(options.userId, options.owner!, true, true); }
           return result;
         },
         cleanup: async () => { await clearAccount(options.userId); clearLocalPreferences(options.userId); },

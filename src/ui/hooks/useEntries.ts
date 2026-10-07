@@ -10,8 +10,9 @@ import { createJournal } from "../../storage/sync/journal";
 import { EntrySync } from "../../storage/sync/engine";
 import { createEntryLifecycle } from "../../storage/lifecycle";
 import { newestFirst } from "../../core/entry-order";
+import { isRememberedAccount, rememberAccount, offlineAccount } from "../../storage/offline-access";
 
-export function useEntries(userId: string) {
+export function useEntries(userId: string, offline = false) {
   const [entry, setEntry] = useState<LocalEntry | null>(null);
   const [owner, setOwner] = useState<string | null>(null);
   const [status, setStatus] = useState("Opening local writing…");
@@ -63,10 +64,20 @@ export function useEntries(userId: string) {
     const upgrade = () => { suspend(); setError("Storage changed in another tab. Copy any unsaved text, then reload."); };
     window.addEventListener("freewrite:reload-required", upgrade);
     void (async () => {
-      await resumeAccount(userId);
+      if (offline) {
+        if (await offlineAccount() !== userId) throw Error("Local access is locked. Sign in online again.");
+      } else {
+        // The server authenticated this render. Also reject a newer browser
+        // identity before reopening a partition from a stale page response.
+        const { data } = await createClient().auth.getSession();
+        if (data.session?.user.id !== userId || cancelled || !active.current) throw Error("Session changed. Sign in again to open writing.");
+        await resumeAccount(userId);
+        if (cancelled || !active.current) return;
+        rememberAccount(userId);
+      }
       const coordinator = await coordinateAccount(userId, () => { suspend(); setError("This tab lost its writing lock. Copy any unsaved text, then reload."); });
       if (coordinator) close = coordinator.close;
-      if (cancelled) { await close(); return; }
+      if (cancelled || !active.current) { await close(); return; }
       const db = await openFreewriteDB();
       setLegacyCount(await db.count("legacy"));
       if (!coordinator) {
@@ -82,7 +93,7 @@ export function useEntries(userId: string) {
       const lifecycle = createEntryLifecycle(userId, coordinator.owner, remote);
       const listHistory = async () => { const rows = await lifecycle.list(); if (!cancelled && active.current) setHistory(rows); };
       const loaded = await store.ensureEntry();
-      if (cancelled || !active.current) return;
+      if (cancelled || !active.current || (offline && !isRememberedAccount(userId))) return;
       committed = loaded; current.current = loaded; buffer.current = loaded.body ?? ""; setEntry(loaded); setOwner(coordinator.owner); setReadOnly(false); setStatus("Saved on this device");
       await listHistory();
       sessionQueue = new LocalSaveQueue(async body => {
@@ -200,7 +211,7 @@ export function useEntries(userId: string) {
     document.addEventListener("visibilitychange", hidden);
     window.addEventListener("focus", wake); window.addEventListener("online", wake); document.addEventListener("visibilitychange", wake);
     return () => { cancelled = true; active.current = false; engine?.stop(); window.removeEventListener("focus", wake); window.removeEventListener("online", wake); document.removeEventListener("visibilitychange", wake); window.removeEventListener("freewrite:reload-required", upgrade); window.removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", hidden); changed?.close(); void (async () => { try { await sessionQueue?.flush(); } finally { await close(); } })().catch(() => {}); };
-  }, [userId, suspend]);
+  }, [userId, suspend, offline]);
   const setBody = useCallback((body: string) => {
     if (!active.current || paused.current || current.current?.recovered || !queue.current) return;
     buffer.current = body;

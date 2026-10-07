@@ -79,5 +79,6 @@ if (task === 'prepare') {
   if (task === 'build') delete env.LOCAL_TEST_SERVICE_KEY;
   const args = task === 'build' ? ['node_modules/next/dist/bin/next', 'build'] : ['node_modules/@playwright/test/cli.js', 'test', ...process.argv.slice(3)];
   command(process.execPath, args, { env, stdio: 'inherit' });
+  if (task === 'build') command(process.execPath, ['scripts/build-worker.mjs'], { env, stdio: 'inherit' });
   if (task === "build") writeFileSync(resolve(work, "build.json"), JSON.stringify({ buildId: readFileSync(resolve(root, ".next/BUILD_ID"), "utf8"), url: env.NEXT_PUBLIC_SUPABASE_URL, keyHash: fingerprint }));
 } else throw Error('Use prepare/start/reset/build/test/stop');

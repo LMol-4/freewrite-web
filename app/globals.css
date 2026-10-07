@@ -386,3 +386,34 @@ dialog button { margin: 12px 12px 0 0; padding: 10px; }
 .chat-dialog a { text-decoration: underline; text-underline-offset: 3px; }
 .chat-dialog label { display: block; }
 .chat-dialog textarea { display: block; width: 100%; height: 12rem; margin-top: 8px; padding: 8px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--popup-border); }
+
+:root { --keyboard-offset: 0px; --bottom-safe: env(safe-area-inset-bottom); --visible-height: 100dvh; }
+dialog:not(.sheet) { margin: auto; bottom: var(--keyboard-offset); max-height: calc(var(--visible-height) - 32px); overflow-y: auto; }
+html, body { overscroll-behavior: none; }
+.sheet { position: fixed; inset: auto 0 var(--keyboard-offset); margin: 0 auto; width: 100%; max-width: 40rem; max-height: calc(var(--visible-height) - 12px); padding: 0 16px calc(16px + var(--bottom-safe)); overflow-y: auto; border-radius: 16px 16px 0 0; }
+.sheet-handle { display: block; width: 100%; height: 44px; margin: 0; touch-action: none; }
+.history-sheet { height: calc(var(--visible-height) * .6); padding: 0 0 var(--bottom-safe); }
+.sheet-full { height: calc(var(--visible-height) - 12px); }
+.sheet .history-panel { position: static; width: 100%; height: auto; box-shadow: none; animation: none; }
+.menu-controls { display: flex; flex-direction: column; gap: 8px; }
+.menu-controls button { margin: 0; }
+.segments { display: flex; flex-wrap: wrap; gap: 4px; }
+.segments button { border: 1px solid var(--popup-border); border-radius: 4px; }
+.segments [aria-pressed="true"] { background: var(--entry-selected-bg); font-weight: bold; }
+.mobile-bar, .reveal-controls { position: fixed; bottom: var(--keyboard-offset); padding-bottom: var(--bottom-safe); height: calc(44px + var(--bottom-safe)); z-index: 800; }
+.mobile-bar { left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; transition: opacity .2s; }
+.mobile-bar button { width: 64px; height: 44px; opacity: .4; }
+.mobile-bar button:active, .mobile-bar button:focus-visible { opacity: 1; }
+.chrome-hidden { opacity: 0; pointer-events: none; }
+.reveal-controls { right: 0; min-width: 44px; opacity: .5; }
+@media (max-width: 639px) {
+  .mobile-quiet, .main-content > .offline-readiness { display: none; }
+  button, a { min-height: 44px; min-width: 44px; -webkit-tap-highlight-color: transparent; }
+  button:active, a:active { background: var(--control-hover); }
+  .main-content { padding-bottom: calc(44px + var(--keyboard-offset) + var(--bottom-safe)); }
+  .editor { padding-left: 16px; padding-right: 16px; scrollbar-width: none; }
+  .editor::-webkit-scrollbar { display: none; }
+  .placeholder { top: 50px; left: 16px; right: 16px; transform: none; }
+  .entry-delete { opacity: .5; }
+  .history-header button { min-height: 44px; min-width: 44px; }
+}

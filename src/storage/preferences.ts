@@ -18,6 +18,7 @@ export function parseStoredPreferences(raw: string | null) {
 }
 export function cacheTheme(userId: string, theme: Theme) {
   document.documentElement.dataset.theme = theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#1e1e1e" : "#ffffff");
   try { localStorage.setItem(ACTIVE_THEME_KEY, JSON.stringify({ userId, theme })); } catch { /* IDB is authoritative; this cache is optional. */ }
 }
 export function clearLocalPreferences(userId: string) {

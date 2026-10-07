@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 
 import { buildChatDispatch, CHAT_TOO_SHORT_MESSAGE, isChatEligible, type ChatDestination, type ChatDispatch } from "@/src/core/prompts";
 import { AlertDialog } from "./AlertDialog";
 import { Popup } from "./Popup";
+import { Sheet } from "./Sheet";
 
 const names = { chatgpt: "ChatGPT", claude: "Claude" };
 
@@ -40,8 +41,9 @@ function CopyPromptDialog({ dispatch, destination, openerRef, onClose }: {
   </dialog>;
 }
 
-export function ChatControl({ body }: { body: string }) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
+export function ChatControl({ body, mobile }: { body: string; mobile?: { open: boolean; onClose(): void; openerRef: RefObject<HTMLButtonElement | null> } }) {
+  const desktopRef = useRef<HTMLButtonElement>(null);
+  const buttonRef = mobile?.openerRef ?? desktopRef;
   const [popup, setPopup] = useState(false);
   const [tooShort, setTooShort] = useState(false);
   const [selection, setSelection] = useState<{ destination: ChatDestination; dispatch: ChatDispatch } | null>(null);
@@ -55,13 +57,18 @@ export function ChatControl({ body }: { body: string }) {
     setSelection({ destination, dispatch });
   }
   return <>
-    <button type="button" className="control-item" ref={buttonRef} aria-haspopup="dialog" aria-expanded={popup}
-      onClick={() => { if (!isChatEligible(body)) setTooShort(true); else setPopup(value => !value); }}>Chat</button>
+    {!mobile && <button type="button" className="control-item" ref={buttonRef} aria-haspopup="dialog" aria-expanded={popup}
+      onClick={() => { if (!isChatEligible(body)) setTooShort(true); else setPopup(value => !value); }}>Chat</button>}
+    {mobile?.open && !selection && (isChatEligible(body) ? <Sheet title="Send to AI" openerRef={buttonRef} onClose={mobile.onClose}>
+      <button type="button" onClick={() => choose("chatgpt")}>ChatGPT</button>
+      <button type="button" onClick={() => choose("claude")}>Claude</button>
+      <button type="button" onClick={mobile.onClose}>Close</button>
+    </Sheet> : <AlertDialog openerRef={buttonRef} message={CHAT_TOO_SHORT_MESSAGE} onClose={mobile.onClose} />)}
     {popup && <Popup anchorRef={buttonRef} onClose={closePopup} label="Send to AI">
       <button type="button" className="size-option" onClick={() => choose("chatgpt")}>ChatGPT</button>
       <button type="button" className="size-option" onClick={() => choose("claude")}>Claude</button>
     </Popup>}
     {tooShort && <AlertDialog openerRef={buttonRef} message={CHAT_TOO_SHORT_MESSAGE} onClose={() => setTooShort(false)} />}
-    {selection && <CopyPromptDialog {...selection} openerRef={buttonRef} onClose={() => setSelection(null)} />}
+    {selection && <CopyPromptDialog {...selection} openerRef={buttonRef} onClose={() => { setSelection(null); mobile?.onClose(); }} />}
   </>;
 }
