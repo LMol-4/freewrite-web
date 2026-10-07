@@ -116,6 +116,22 @@ No deployment or push job is included.
   a cold offline launch is not promised. Reload starts a new timer; a large forward wall-clock
   change may complete it. Fractional pauses and backward changes do not grant extra time.
 
+## AI hand-off
+
+Chat requires at least 350 trimmed characters and keeps the original canned prompts.
+Choose ChatGPT or Claude, then use **Copy prompt** and **Open ChatGPT/Claude** separately;
+paste into a new chat. Sending shares that writing with the selected service, which may
+require sign-in. Copy success is shown only after the clipboard operation completes.
+If clipboard access is denied or unavailable, the dialog provides the complete selectable
+prompt for manual copying. Writing is never placed in an external URL by the current UI.
+
+Candidate deep links remain disabled for both services. On 2026-10-07, harmless live checks
+populated the complete ChatGPT prompt in WebKit, but Chromium received HTTP 403. Claude
+showed a security check in Chromium and did not show the complete prompt in WebKit.
+Recheck destination behavior in target browsers before enabling deep links and at release;
+an opened URL alone does not prove prompt population. Automated browser tests intercept
+AI destinations and use harmless fixtures; they never submit chats.
+
 ## Migrations and release gates
 
 The four historical migrations remain unchanged. Forward migrations add preference versions,
