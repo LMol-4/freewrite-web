@@ -24,7 +24,10 @@ import { FullscreenControl } from "./FullscreenControl";
 import { useMobileChrome } from "../hooks/useMobileChrome";
 import { FONT_SIZES } from "../../core/fonts";
 import { forgetAccount, isRememberedAccount, OFFLINE_ACCOUNT_KEY } from "../../storage/offline-access";
-import { OfflineReadiness, useOfflineReadiness } from "./OfflineReadiness";
+import { useOfflineReadiness } from "./OfflineReadiness";
+
+import { SyncStatus } from "./SyncStatus";
+import { ResetTimerButton } from "./ResetTimerButton";
 
 export function Writer({ userId, initialPlaceholder, offline = false }: { userId: string; initialPlaceholder: string; offline?: boolean }) {
   const entries = useEntries(userId, offline);
@@ -106,18 +109,17 @@ export function Writer({ userId, initialPlaceholder, offline = false }: { userId
   return (
     <div className={`app-container${historyOpen ? " history-visible" : ""}`}>
       <div className="main-content">
-        <OfflineReadiness status={readiness} />
+        <SyncStatus local={entries.readOnly ? "" : entries.status} remote={entries.syncStatus} preferences={preferences.status}
+          preferenceError={preferences.error} localError={!!entries.error} readiness={readiness} disabled={syncDisabled}
+          onSync={() => void Promise.all([entries.flushRemote(), preferences.flush()]).catch(() => {})}
+          onRetryPreferences={() => void preferences.flush().catch(() => {})} />
         {!authenticated && <p role="alert">Your session changed. Local writing is retained. <a href="/sign-in">Sign in again</a>.</p>}
         {entries.legacyCount > 0 && <p role="status">{entries.legacyCount} legacy entries are preserved separately. Their account ownership needs to be decided before import.</p>}
-        <p className={entries.status === "Saved on this device" ? "mobile-quiet" : ""} role="status" aria-live="polite">{entries.status}</p>
-        <p className={entries.syncStatus === "Entries synced" ? "mobile-quiet" : ""}><span role="status" aria-live="polite">{entries.syncStatus === "Entries synced" && preferences.status === "Preferences synced" && entries.status === "Saved on this device" ? "Synced" : entries.syncStatus}</span>{" "}
-          <button type="button" disabled={syncDisabled} onClick={() => void Promise.all([entries.flushRemote(), preferences.flush()]).catch(() => {})}>Sync now</button>
-        </p>
+        {entries.readOnly && <p role="status">{entries.status}</p>}
         {entries.notice && <p role="status">{entries.notice} <button type="button" onClick={entries.dismissNotice}>Dismiss</button></p>}
         {entries.actionError && !deleting && <p role="alert">{entries.actionError} <button type="button" onClick={entries.dismissActionError}>Dismiss</button></p>}
         {entries.error && <p role="alert">{entries.error} <button type="button" onClick={() => void entries.retry()}>Retry local save</button> Keep the text available to copy.</p>}
-        {preferences.error && <p role="alert">{preferences.error} <button type="button" onClick={() => void preferences.flush().catch(() => {})}>Retry preferences</button></p>}
-        <span className={preferences.status === "Preferences synced" ? "mobile-quiet" : ""} role="status">{preferences.status}</span>
+        {preferences.error && !preferences.error.startsWith("Preferences could not sync") && <p role="alert">{preferences.error} <button type="button" onClick={() => void preferences.flush().catch(() => {})}>Retry preferences</button></p>}
         {signOut.error && <p role="alert">{signOut.error} {signOut.sessionRemoved && <button type="button" onClick={() => void signOut.signOut(true)}>Retry cleanup</button>}</p>}
         {entry?.body === null && <p role="alert">This entry is not downloaded. Reconnect and retry sync to open it.</p>}
         {entry?.recovered && authenticated && <p role="status">Recovered copy · Read-only. <button type="button" disabled={syncDisabled} onClick={() => void entries.restoreEntry().then(focusEditor).catch(() => {})}>Restore as new entry</button></p>}
@@ -135,11 +137,11 @@ export function Writer({ userId, initialPlaceholder, offline = false }: { userId
         {!chrome.mobile && <fieldset disabled={syncDisabled} style={{ border: 0, padding: 0, margin: 0 }}><Toolbar
           leftControls={fontControls.items}
           rightControls={[
-            <TimerButton key="timer" label={timer.label} onClick={timer.toggle} />,
+            <div key="timer" className="timer-controls"><TimerButton label={timer.label} onClick={timer.toggle} /><ResetTimerButton onClick={timer.reset} /></div>,
             <ThemeToggle key="theme" theme={theme} onToggle={() => setTheme(otherTheme(theme))} />,
             entry && entry.body !== null && authenticated && <ChatControl key={entry.id} body={entry.body} />,
             <FullscreenControl key="fullscreen" />,
-            <button type="button" className="control-item" key="new" aria-label="New entry" onClick={() => void newEntry()}>+</button>,
+            <button type="button" className="control-item" key="new" aria-label="New entry" title="New entry" onClick={() => void newEntry()}>+</button>,
             <button type="button" className="control-item" key="history" ref={historyRef} aria-label="History" aria-expanded={historyOpen} aria-controls="entry-history" onClick={() => setHistoryOpen(value => !value)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
             </button>,
@@ -149,7 +151,7 @@ export function Writer({ userId, initialPlaceholder, offline = false }: { userId
         {chrome.mobile && <>
           <div className={`mobile-bar${chrome.hidden ? " chrome-hidden" : ""}`} inert={chrome.hidden}>
             <button type="button" ref={menuRef} aria-label="Menu" disabled={syncDisabled} onClick={() => setMenuOpen(true)}>☰</button>
-            <button type="button" className="control-item" onClick={event => { if (event.detail > 0) event.currentTarget.blur(); timer.toggle(); }}>{timer.label}</button>
+            <div className="timer-controls"><button type="button" className="control-item" onClick={event => { if (event.detail > 0) event.currentTarget.blur(); timer.toggle(); }}>{timer.label}</button><ResetTimerButton onClick={() => { timer.reset(); chrome.reveal(); }} /></div>
             <button type="button" ref={historyRef} aria-label="History" disabled={syncDisabled} onClick={() => setHistoryOpen(true)}>◷</button>
           </div>
           {chrome.hidden && <button type="button" className="reveal-controls" aria-label="Show controls" onClick={chrome.reveal}
@@ -161,8 +163,6 @@ export function Writer({ userId, initialPlaceholder, offline = false }: { userId
               <FullscreenControl mobile />
               <button type="button" onClick={() => { setMenuOpen(false); void newEntry(); }}>New entry</button>
               <button type="button" onClick={() => { setMenuOpen(false); setMobileChat(true); }}>Send to AI</button>
-              <p>{entries.syncStatus}</p><button type="button" onClick={() => void Promise.all([entries.flushRemote(), preferences.flush()]).catch(() => {})}>Sync now</button>
-              <OfflineReadiness status={readiness} />
               <button type="button" ref={signOutRef} onClick={() => { setMenuOpen(false); void signOut.signOut(); }}>Sign out</button>
               <button type="button" onClick={() => setMenuOpen(false)}>Close menu</button>
             </div>

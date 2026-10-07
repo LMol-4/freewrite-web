@@ -6,11 +6,12 @@ test("a quota failure never reports saved and retains the editable buffer for re
     Object.defineProperty(window, "restorePut", { value: () => { IDBObjectStore.prototype.put = original; } });
     IDBObjectStore.prototype.put = function (...args) { if (this.name === "entries") throw new DOMException("Injected quota failure", "QuotaExceededError"); return original.apply(this, args); };
   });
-  await editor.fill("still available to copy"); await expect(page.getByText("Not saved on this device", { exact: true })).toBeVisible();
-  await expect(editor).toHaveValue("still available to copy"); await expect(page.getByText("Saved on this device", { exact: true })).toBeHidden();
+  await editor.fill("still available to copy"); await expect(page.getByText("Not saved on this device", { exact: true })).toBeAttached();
+  await expect(page.getByRole("alert").filter({ hasText: "Injected quota failure" })).toBeVisible(); await expect(editor).toHaveValue("still available to copy"); await expect(page.getByText("Saved on this device", { exact: true })).toHaveCount(0);
   await page.evaluate(() => (window as unknown as { restorePut(): void }).restorePut());
-  await page.getByRole("button", { name: "Retry local save" }).click(); await expect(page.getByText("Saved on this device", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Retry local save" }).click(); await expect(page.getByText("Saved on this device", { exact: true })).toBeAttached();
   await page.reload(); await expect(editor).toHaveValue("still available to copy");
+  await expect(page.getByRole("alert").filter({ hasText: "Injected quota failure" })).toHaveCount(0);
 });
 test("continuous input commits before idle and preserves IME input and selection", async ({ page }) => {
   const editor = page.getByRole("textbox", { name: "Freewrite entry" });
@@ -24,7 +25,7 @@ test("continuous input commits before idle and preserves IME input and selection
   });
   await editor.fill("");
   await editor.pressSequentially("continuous writing", { delay: 20 });
-  await expect(page.getByText("Saved on this device", { exact: true })).toBeVisible();
+  await expect(page.getByText("Saved on this device", { exact: true })).toBeAttached();
   expect(await page.evaluate(() => (window as unknown as { committedBodies: string[] }).committedBodies.some(body => body.length > 0 && body.length < "continuous writing".length))).toBe(true);
   await editor.evaluate(element => {
     const input = element as HTMLTextAreaElement;
@@ -35,12 +36,12 @@ test("continuous input commits before idle and preserves IME input and selection
     input.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "日本語" }));
     input.setSelectionRange(5, 5);
   });
-  await expect(page.getByText("Saved on this device", { exact: true })).toBeVisible();
+  await expect(page.getByText("Saved on this device", { exact: true })).toBeAttached();
   expect(await editor.evaluate(e => (e as HTMLTextAreaElement).selectionStart)).toBe(5);
   await page.reload(); await expect(editor).toHaveValue("continuous writing 日本語");
 });
 test("dark theme is present before hydration and stays dark without hydration errors", async ({ page }) => {
-  await page.getByRole("button", { name: "Dark Mode" }).click(); await expect(page.getByText("Preferences synced", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Dark Mode" }).click(); await expect(page.getByText("Preferences synced", { exact: true })).toBeAttached();
   const errors: string[] = []; page.on("pageerror", error => errors.push(error.message)); page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
   let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
   await page.route("**/_next/static/**/*.js", async route => { await gate; await route.continue(); });
@@ -69,15 +70,15 @@ test("dialogs trap focus, default to Cancel and restore focus", async ({ page })
   const font = page.getByRole("button", { name: "Font size", exact: true }); await font.click(); await page.keyboard.press("Escape"); await expect(font).toBeFocused();
 });
 test("offline preferences retry after reconnect and are visible to a fresh context", async ({ page, context, browser, account }) => {
-  await expect(page.getByText("Preferences synced", { exact: true })).toBeVisible();
+  await expect(page.getByText("Preferences synced", { exact: true })).toBeAttached();
   await context.setOffline(true); await page.getByRole("button", { name: "Dark Mode" }).click();
-  await expect(page.getByText("Preferences pending", { exact: true })).toBeVisible();
+  await expect(page.getByText("Preferences pending", { exact: true })).toBeAttached();
   await context.setOffline(false); await page.evaluate(() => window.dispatchEvent(new Event("online")));
-  await expect(page.getByText("Preferences synced", { exact: true })).toBeVisible();
+  await expect(page.getByText("Preferences synced", { exact: true })).toBeAttached();
   const fresh = await browser.newContext(); try { const other = await fresh.newPage(); await login(other, account); await expect(other.locator("html")).toHaveAttribute("data-theme", "dark"); } finally { await fresh.close(); }
 });
 test("account change in another tab hides the old account's buffer", async ({ page, context, createAccount }) => {
-  await page.getByRole("textbox", { name: "Freewrite entry" }).fill("A only"); await expect(page.getByText("Saved on this device", { exact: true })).toBeVisible();
+  await page.getByRole("textbox", { name: "Freewrite entry" }).fill("A only"); await expect(page.getByText("Saved on this device", { exact: true })).toBeAttached();
   const b = await createAccount(); const second = await context.newPage(); await login(second, b);
   await expect(page.getByRole("textbox", { name: "Freewrite entry" })).toBeHidden(); await expect(second.getByRole("textbox", { name: "Freewrite entry" })).toHaveValue("\n\n"); await second.close();
 });

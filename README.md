@@ -118,6 +118,12 @@ Auth, Storage, REST and local email remain available for integration coverage.
   Escape closes a popup before history; desktop history keeps toolbar controls accessible.
 - “Synced” requires acknowledged entry and preference work; it is not shown for a newer local
   transaction. Page termination delivery is not relied upon; there is no keepalive transport.
+- The small sync icon opens device-save, cloud, preference and offline-launch details,
+  with Sync now and retry actions. A check means synced; rotating arrows mean work is in
+  progress; an exclamation marks a problem. Local-save failures remain visible in the editor.
+- The reset icon beside the timer stops it and restores 15:00 without changing writing.
+  Font choices share a normalized lowercase height; bundled Latin font line metrics are
+  aligned where supported. Different typefaces still have different shapes and widths.
 - After **Offline launch ready on this device**, a cold offline launch can reopen the last
   signed-in, unlocked browser account. Reload starts a new timer; a large forward wall-clock
   change may complete it. Fractional pauses and backward changes do not grant extra time.
@@ -208,3 +214,10 @@ Before production release, configure Vercel Deployment Checks
 to require GitHub's **CI / test** check and verify failing/pending checks block production
 promotion (MAN-15). That setting is still pending; the workflow alone does not configure it.
 No hosted settings, deployment, or Git push is authorized by these local test commands.
+
+If the hosted app reports a missing `entry_receipts` table or preference RPC, run the
+read-only [schema diagnostic](scripts/check-auth-schema.sql) in the matching project's
+SQL editor and compare its migration history with this repository. The three forward
+migrations dated `20261006` add preference versions/account guards and immutable entry
+publication. Apply only verified missing migrations through the authorized release
+process; do not reset a journal database or blindly replay already-applied migrations.

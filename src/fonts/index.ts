@@ -23,6 +23,13 @@ export const notoSerifKannada = localFont({
   variable: "--font-noto-serif-kannada",
   display: "swap",
   preload: false,
+  // The latin subset retains Kannada's very deep descent (71% em). Normalize
+  // line metrics to Lato after the editor's x-height adjustment (.5065/.547).
+  declarations: [
+    { prop: "ascent-override", value: "106.592%" },
+    { prop: "descent-override", value: "23.003%" },
+    { prop: "line-gap-override", value: "0%" },
+  ],
 });
 
 export const ebGaramond = localFont({
@@ -30,6 +37,11 @@ export const ebGaramond = localFont({
   variable: "--font-eb-garamond",
   display: "swap",
   preload: false,
+  declarations: [
+    { prop: "ascent-override", value: "77.947%" },
+    { prop: "descent-override", value: "16.821%" },
+    { prop: "line-gap-override", value: "0%" },
+  ],
 });
 
 export const libreBaskerville = localFont({
@@ -37,4 +49,9 @@ export const libreBaskerville = localFont({
   variable: "--font-libre-baskerville",
   display: "swap",
   preload: false,
+  declarations: [
+    { prop: "ascent-override", value: "103.281%" },
+    { prop: "descent-override", value: "22.288%" },
+    { prop: "line-gap-override", value: "0%" },
+  ],
 });
