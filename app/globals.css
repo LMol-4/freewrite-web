@@ -410,6 +410,7 @@ html, body { overscroll-behavior: none; }
 @media (max-width: 639px) {
   .mobile-quiet, .main-content > .offline-readiness { display: none; }
   button, a { min-height: 44px; min-width: 44px; -webkit-tap-highlight-color: transparent; }
+  a { display: inline-flex; align-items: center; }
   button:active, a:active { background: var(--control-hover); }
   .main-content { padding-bottom: calc(44px + var(--keyboard-offset) + var(--bottom-safe)); }
   .editor { padding-left: 16px; padding-right: 16px; scrollbar-width: none; }

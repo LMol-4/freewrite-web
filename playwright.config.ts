@@ -9,7 +9,9 @@ const appEnv = { ...local }; appEnv.LOCAL_TEST_SERVICE_KEY = "";
 export default defineConfig({
   testDir: "./e2e", timeout: 45000, retries: process.env.CI ? 1 : 0, workers: 1,
   reporter: [["list"], ["html", { open: "never" }]],
-  use: { baseURL: local.APP_ORIGIN, trace: "retain-on-failure" },
+  // Route-based fault injection needs workers blocked (especially in WebKit).
+  // The PWA suite explicitly enables them and disconnects the actual local targets.
+  use: { baseURL: local.APP_ORIGIN, trace: "retain-on-failure", serviceWorkers: "block" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }, { name: "webkit", use: { ...devices["Desktop Safari"] } }],
-  webServer: { command: "node node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000", url: local.APP_ORIGIN, env: appEnv, reuseExistingServer: false, timeout: 120000 },
+  webServer: { command: "node scripts/test-server.mjs", url: local.APP_ORIGIN, env: appEnv, reuseExistingServer: false, timeout: 120000 },
 });

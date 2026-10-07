@@ -26,7 +26,7 @@ test("loaded app retains offline writing, blocks safe sign-out and reconnects", 
 test("dirty focus preserves losing text including typing during conflict resolution", async ({ page, browser, account }) => {
   const editor = page.getByRole("textbox", { name: "Freewrite entry" }); await editor.fill("shared base");
   await page.keyboard.press("Control+s"); await expect(page.getByText("Synced", { exact: true })).toBeVisible();
-  const second = await browser.newContext();
+  const second = await browser.newContext({ serviceWorkers: "block" });
   try {
     const other = await second.newPage(); await login(other, account); const otherEditor = other.getByRole("textbox", { name: "Freewrite entry" }); await expect(otherEditor).toHaveValue("shared base");
     await second.setOffline(true); await otherEditor.fill("first losing text");
