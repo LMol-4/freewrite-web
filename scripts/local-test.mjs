@@ -33,7 +33,15 @@ function environment() {
 const task = process.argv[2];
 if (task === 'prepare') {
   mkdirSync(resolve(work, 'supabase/migrations'), { recursive: true });
-  const config = readFileSync(resolve(root, 'supabase/config.toml'), 'utf8').replace('project_id = "freewrite-web"', `project_id = "${project}"`).replaceAll('5432', '5532');
+  let config = readFileSync(resolve(root, 'supabase/config.toml'), 'utf8').replace('project_id = "freewrite-web"', `project_id = "${project}"`).replaceAll('5432', '5532');
+  // Disable unused services in the disposable copy only. Unlike --exclude,
+  // realtime.enabled=false also skips its database initialization job.
+  // Disabling Studio also disables its postgres-meta service.
+  for (const service of ['realtime', 'studio']) {
+    const setting = new RegExp(`(\\[${service}\\]\\r?\\n)enabled = (?:true|false)`);
+    if (!setting.test(config)) throw Error(`Missing ${service} setting in disposable config`);
+    config = config.replace(setting, '$1enabled = false');
+  }
   writeFileSync(resolve(work, 'supabase/config.toml'), config);
   writeFileSync(resolve(work, 'DISPOSABLE'), project);
   for (const name of readdirSync(resolve(root, 'supabase/migrations'))) if (name.endsWith('.sql')) copyFileSync(resolve(root, 'supabase/migrations', name), resolve(work, 'supabase/migrations', name));

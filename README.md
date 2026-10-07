@@ -64,8 +64,16 @@ Each browser test creates unique accounts and tears them down, removing fixture 
 first. RLS tests use user JWTs, not admin access. Separate confirmation/recovery tests use
 actual local mail links, including expiry/reuse. Failed traces are under `test-results/`
 and `playwright-report/`; they contain disposable fixture data and must not be committed.
-CI's `test` job runs the same local stack, migrations, build, Chromium/WebKit and trace upload.
+CI runs on pull requests and pushes to `main`, cancelling superseded runs. Static/unit
+checks and the two browser jobs run in parallel. Each browser has an isolated runner,
+local backend and production build; tests within that runner stay serial because offline
+tests interrupt its backend. Fresh Supabase startup replays migrations; Chromium also
+verifies the legacy upgrade. Failure artifacts include the browser name. The aggregate
+`test` job preserves the required **CI / test** check and requires every job to succeed.
 No deployment or push job is included.
+The generated disposable Supabase configuration disables Realtime and Studio (including
+Postgres Meta), which these tests do not use. The source Supabase configuration is unchanged;
+Auth, Storage, REST and local email remain available for integration coverage.
 
 ## Persistence and sign-out
 
