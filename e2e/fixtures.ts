@@ -47,3 +47,10 @@ export const test = base.extend<{ account: Account; createAccount: () => Promise
   page: async ({ page, account }, provide) => { await login(page, account); await provide(page); },
 });
 export { expect };
+
+export async function syncNow(page: Page) {
+  const indicator = page.getByRole("button", { name: "Sync status", exact: true });
+  if (await indicator.getAttribute("aria-expanded") !== "true") await indicator.click();
+  await page.getByRole("button", { name: "Sync now", exact: true }).click();
+  await indicator.click();
+}
