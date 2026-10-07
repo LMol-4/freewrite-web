@@ -63,6 +63,7 @@ test("failed upload cannot publish; a large Unicode note retries without truncat
   const client = localClients().user(); await client.auth.signInWithPassword(account);
   expect((await client.from("entries").select("*")).data).toEqual([]);
   await page.unroute("**/storage/v1/object/notes/**"); await syncNow(page);
+  await expect(page.getByRole("alert").filter({ hasText: "Writing is locked" })).toHaveCount(0);
   await expect(page.getByText("Synced", { exact: true })).toBeAttached();
   const rows = await client.from("entries").select("*"); expect(rows.data).toHaveLength(1);
   const downloaded = await client.storage.from("notes").download(rows.data![0].storage_path);

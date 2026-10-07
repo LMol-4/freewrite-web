@@ -39,6 +39,17 @@ it("fallback lease takeover fences the old tab, including late acknowledgements"
   await expect(a.update(e.id, "old tab", e.localGeneration)).rejects.toThrow("locked");
   expect((await a.get(e.id))?.body).toBe("\n\n");
 });
+it("a delayed heartbeat does not block the current writer, but takeover does", async () => {
+  const a = await store(); const e = await a.create({ body: "before" });
+  const db = await openFreewriteDB(); const state = (await db.get("meta", "a"))!;
+  await db.put("meta", { ...state, expires: Date.now() - 1 });
+  const saved = await a.update(e.id, "saved after delayed heartbeat", e.localGeneration);
+  expect(saved.body).toBe("saved after delayed heartbeat");
+  expect(await claimAccount("a", "tab-b")).toBe(true);
+  await expect(a.update(e.id, "stale writer", saved.localGeneration)).rejects.toThrow("locked");
+  expect(await renewAccount("a", "tab-a")).toBe(false);
+  expect((await a.get(e.id))?.body).toBe(saved.body);
+});
 it("persistent sign-out lock blocks writes and can be cancelled without data loss", async () => {
   const s = await store(); const e = await s.create({ body: "keep" });
   await setAccountLock("a", "tab-a", true);
