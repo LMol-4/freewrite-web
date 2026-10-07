@@ -71,6 +71,9 @@ tests interrupt its backend. Fresh Supabase startup replays migrations; Chromium
 verifies the legacy upgrade. Failure artifacts include the browser name. The aggregate
 `test` job preserves the required **CI / test** check and requires every job to succeed.
 No deployment or push job is included.
+The generated disposable Supabase configuration disables Realtime and Studio (including
+Postgres Meta), which these tests do not use. The source Supabase configuration is unchanged;
+Auth, Storage, REST and local email remain available for integration coverage.
 
 ## Persistence and sign-out
 
