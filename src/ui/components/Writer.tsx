@@ -115,9 +115,9 @@ export function Writer({ userId, initialPlaceholder }: { userId: string; initial
         <fieldset disabled={syncDisabled} style={{ border: 0, padding: 0, margin: 0 }}><Toolbar
           leftControls={fontControls.items}
           rightControls={[
-            entry && entry.body !== null && authenticated && <ChatControl key={entry.id} body={entry.body} />,
             <TimerButton key="timer" label={timer.label} onClick={timer.toggle} />,
             <ThemeToggle key="theme" theme={theme} onToggle={() => setTheme(otherTheme(theme))} />,
+            entry && entry.body !== null && authenticated && <ChatControl key={entry.id} body={entry.body} />,
             <button type="button" className="control-item" key="new" aria-label="New entry" onClick={() => void newEntry()}>+</button>,
             <button type="button" className="control-item" key="history" ref={historyRef} aria-label="History" aria-expanded={historyOpen} aria-controls="entry-history" onClick={() => setHistoryOpen(value => !value)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
