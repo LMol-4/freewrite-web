@@ -1,6 +1,7 @@
 import { openFreewriteDB } from "./local/indexeddb";
 
-const KEY = "freewrite:offline-account";
+export const OFFLINE_ACCOUNT_KEY = "freewrite:offline-account";
+const KEY = OFFLINE_ACCOUNT_KEY;
 /** A device-local access policy, never a credential or a server authorization. */
 export function rememberAccount(userId: string) { try { localStorage.setItem(KEY, userId); } catch { /* Online writing remains available; offline access fails closed. */ } }
 export function forgetAccount(userId: string) { try { if (localStorage.getItem(KEY) === userId) localStorage.removeItem(KEY); } catch { /* The authoritative account lock also denies offline access. */ } }

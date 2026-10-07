@@ -23,7 +23,7 @@ import { Sheet } from "./Sheet";
 import { FullscreenControl } from "./FullscreenControl";
 import { useMobileChrome } from "../hooks/useMobileChrome";
 import { FONT_SIZES } from "../../core/fonts";
-import { forgetAccount, isRememberedAccount } from "../../storage/offline-access";
+import { forgetAccount, isRememberedAccount, OFFLINE_ACCOUNT_KEY } from "../../storage/offline-access";
 import { OfflineReadiness, useOfflineReadiness } from "./OfflineReadiness";
 
 export function Writer({ userId, initialPlaceholder, offline = false }: { userId: string; initialPlaceholder: string; offline?: boolean }) {
@@ -87,7 +87,11 @@ export function Writer({ userId, initialPlaceholder, offline = false }: { userId
       if (!data.user && error && (!offline || navigator.onLine) && (error.status === 401 || error.status === 403 || error.name === "AuthSessionMissingError")) invalidate();
     }); };
     window.addEventListener("pageshow", check); window.addEventListener("focus", check);
-    const storage = () => { if (!isRememberedAccount(userId)) invalidate(); };
+    const storage = (event: StorageEvent) => {
+      // A's cleanup must not invalidate B while B is opening. Ignore unrelated
+      // preference writes and only follow this account's access transition.
+      if (event.key === OFFLINE_ACCOUNT_KEY && event.newValue !== userId && (event.newValue !== null || event.oldValue === userId)) invalidate();
+    };
     window.addEventListener("storage", storage);
     return () => { identities?.close(); data.subscription.unsubscribe(); window.removeEventListener("pageshow", check); window.removeEventListener("focus", check); window.removeEventListener("storage", storage); };
   }, [userId, suspend, offline]);
