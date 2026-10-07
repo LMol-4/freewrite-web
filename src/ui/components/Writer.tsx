@@ -17,6 +17,7 @@ import { createClient } from "@/src/lib/supabase/client";
 import { clearLocalPreferences } from "@/src/storage/preferences";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { HistoryPanel } from "./HistoryPanel";
+import { ChatControl } from "./ChatControl";
 import type { LocalEntry } from "../../storage/local/indexeddb";
 
 export function Writer({ userId, initialPlaceholder }: { userId: string; initialPlaceholder: string }) {
@@ -114,6 +115,7 @@ export function Writer({ userId, initialPlaceholder }: { userId: string; initial
         <fieldset disabled={syncDisabled} style={{ border: 0, padding: 0, margin: 0 }}><Toolbar
           leftControls={fontControls.items}
           rightControls={[
+            entry && entry.body !== null && authenticated && <ChatControl key={entry.id} body={entry.body} />,
             <TimerButton key="timer" label={timer.label} onClick={timer.toggle} />,
             <ThemeToggle key="theme" theme={theme} onToggle={() => setTheme(otherTheme(theme))} />,
             <button type="button" className="control-item" key="new" aria-label="New entry" onClick={() => void newEntry()}>+</button>,
