@@ -8,6 +8,10 @@ environment and outcome for each gate below; keep credentials out of evidence.
 
 Use Node 22, pnpm 11.10.0 and the committed lockfile. `vercel.json` runs the full
 build including the offline worker. Configure Node 22 in the project settings.
+For Vercel's package-manager selection, enable `ENABLE_EXPERIMENTAL_COREPACK=1`
+as described in its [build configuration](https://vercel.com/docs/builds/configure-a-build#corepack),
+then verify the install log actually selects pnpm 11.10.0 from `packageManager`.
+Local development continues to use direct pnpm. This hosted setting is pending.
 The ignored-build script disables Git preview builds by default. Before removing
 that restriction, provision a separate test Supabase project with synthetic data,
 scope preview public URL/key variables to it, and test its owned HTTPS callback
