@@ -11,12 +11,10 @@ Use Node 22 (verified locally with 22.17.1), the pinned **pnpm 11.10.0**, Docker
 with Linux containers, and Supabase CLI **2.75.0**. Install from the existing lockfile:
 
 ```sh
-corepack pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile
 ```
 
-If the global pnpm shim is broken on Windows, `corepack pnpm` still selects the version
-from `packageManager`. Ensure your selected Node installation is on PATH. The PowerShell
-commands below are also valid in a Unix shell; no global configuration change is required.
+Confirm `pnpm --version` reports 11.10.0 and Node 22 is on PATH.
 
 Copy `.env.example` to `.env.local`, supply your local stack's public key, and set
 `APP_ORIGIN` to the exact app origin. `APP_ALLOWED_ORIGINS` is a comma-separated list of
@@ -25,7 +23,7 @@ must use HTTPS. Never configure a hosted journal project for automated testing.
 
 ```sh
 supabase start
-corepack pnpm dev
+pnpm dev
 ```
 
 The ordinary local stack uses ports 54320–54329. Its configuration requires confirmed
@@ -40,21 +38,21 @@ and loopback endpoints before reset or privileged fixture operations. It preserv
 ordinary local and hosted projects. Optional analytics/studio/edge services are excluded.
 
 ```sh
-corepack pnpm exec tsc --noEmit
-corepack pnpm lint
-corepack pnpm exec vitest run
+pnpm exec tsc --noEmit
+pnpm lint
+pnpm exec vitest run
 node scripts/local-test.mjs prepare
 node scripts/local-test.mjs start
 node scripts/local-test.mjs upgrade-check
 node scripts/local-test.mjs reset
 node scripts/local-test.mjs build
-corepack pnpm exec playwright install chromium webkit
+pnpm exec playwright install chromium webkit
 node scripts/local-test.mjs test
 node scripts/local-test.mjs stop
 ```
 
 On Linux, install browser system libraries with
-`corepack pnpm exec playwright install --with-deps chromium webkit`.
+`pnpm exec playwright install --with-deps chromium webkit`.
 
 `reset` only resets the verified disposable stack, never `--linked`. `stop` retains its
 volumes. Build and test explicitly override `.env.local` with loopback values. A build-ID
@@ -171,6 +169,11 @@ an opened URL alone does not prove prompt population. Automated browser tests in
 AI destinations and use harmless fixtures; they never submit chats.
 
 ## Migrations and release gates
+
+See [OPERATIONS.md](OPERATIONS.md) for environment isolation, promotion checks,
+recovery, retention monitoring and remaining asset/manual release gates.
+Checked-in Vercel configuration skips preview builds until a separate test backend
+and owned callback origins are reviewed. It does not configure hosted CI gates.
 
 The four historical migrations remain unchanged. Forward migrations add preference versions,
 immutable entry metadata and retained mutation receipts, and restrict direct mutation grants.
