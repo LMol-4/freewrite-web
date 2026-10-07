@@ -26,7 +26,7 @@ jobs:
       - name: Unit and transaction tests
         run: pnpm exec vitest run
   browsers:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -49,15 +49,17 @@ jobs:
         run: node scripts/local-test.mjs prepare
       # Fresh hosted runners have no saved DB volume: start replays all migrations.
       # Each browser gets its own runner/backend; offline tests must stay serial.
-      - name: Start disposable Supabase and replay migrations
-        run: node scripts/local-test.mjs start
+      - name: Configure reliable Ubuntu package downloads
+        timeout-minutes: 1
+        run: sudo python3 scripts/ci-prepare-apt.py
+      - name: Start backend and install browser concurrently
+        timeout-minutes: 9
+        run: bash scripts/ci-start.sh ${{ matrix.browser }}
       - name: Verify upgrade preserves existing data
         if: matrix.browser == 'chromium'
         run: node scripts/local-test.mjs upgrade-check
       - name: Build with local backend
         run: node scripts/local-test.mjs build
-      - name: Install matching browser
-        run: pnpm exec playwright install --with-deps --only-shell ${{ matrix.browser }}
       - name: Auth, RLS, Storage and browser tests
         run: node scripts/local-test.mjs test --project=${{ matrix.browser }}
       - uses: actions/upload-artifact@v4
@@ -67,6 +69,7 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            .local-test/ci-logs/
           retention-days: 7
       - name: Stop disposable Supabase
         if: always() && steps.prepare.outcome == 'success'

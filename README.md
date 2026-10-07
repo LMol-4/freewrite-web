@@ -74,6 +74,12 @@ No deployment or push job is included.
 The generated disposable Supabase configuration disables Realtime and Studio (including
 Postgres Meta), which these tests do not use. The source Supabase configuration is unchanged;
 Auth, Storage, REST and local email remain available for integration coverage.
+Browser jobs use Ubuntu 24.04 and replace its Azure Ubuntu APT mirror with the official
+HTTPS archive, retaining repository signatures and suites. APT uses 30-second network
+timeouts and two retries. Browser dependencies/downloads and Supabase startup run in
+parallel with eight-minute limits; both must succeed before the build/tests. Separate
+setup logs are included in failure artifacts. Production builds remain Vercel's
+responsibility and must be gated by `CI / test`; local-backend CI artifacts are not deployed.
 
 ## Persistence and sign-out
 
