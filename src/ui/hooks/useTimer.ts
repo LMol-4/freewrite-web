@@ -51,5 +51,6 @@ export function useTimer() {
     status: state.status,
     label: formatTime(state.remainingSeconds),
     toggle: handleToggle,
+    reset: () => setState(current => reset(current)),
   };
 }

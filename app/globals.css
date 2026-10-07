@@ -120,7 +120,15 @@ body {
   pointer-events: none;
   color: var(--placeholder-color);
   transition: color 0.3s ease;
+  line-height: 1.6;
+  width: calc(100% - 40px);
+  max-width: 760px;
+  text-align: center;
 }
+
+/* Match Lato's lowercase height across fonts, rather than equating unlike em
+   squares. Keep the chosen pixel size and line spacing stable. */
+.editor, .placeholder { font-size-adjust: .5065; }
 
 .editor::-webkit-scrollbar {
   width: 6px;
@@ -344,7 +352,7 @@ body {
 }
 
 button.control-item { background: none; border: 0; font: inherit; }
-button:focus-visible, a:focus-visible, textarea:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+button:focus-visible, a:focus-visible, textarea:not(.editor):focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 button:disabled { cursor: default; opacity: .5; }
 dialog { max-width: 34rem; border: 1px solid var(--popup-border); border-radius: 8px; padding: 24px; background: var(--bg-color); color: var(--text-color); }
 dialog::backdrop { background: rgb(0 0 0 / .5); }
@@ -405,8 +413,25 @@ html, body { overscroll-behavior: none; }
 .mobile-bar { left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; transition: opacity .2s; }
 .mobile-bar button { width: 64px; height: 44px; opacity: .4; }
 .mobile-bar button:active, .mobile-bar button:focus-visible { opacity: 1; }
+.timer-controls { display: flex; align-items: center; gap: 4px; }
+.timer-controls > .control-item:first-child { min-width: 3.2em; font-variant-numeric: tabular-nums; justify-content: center; }
+.timer-reset { justify-content: center; min-width: 28px; min-height: 28px; }
+.mobile-bar .timer-reset { width: 44px; }
 .chrome-hidden { opacity: 0; pointer-events: none; }
 .reveal-controls { right: 0; min-width: 44px; opacity: .5; }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.sync-status { position: absolute; top: max(4px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); z-index: 850; color: var(--control-text); }
+.sync-indicator { display: grid; place-items: center; position: relative; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--bg-color); color: inherit; opacity: .55; cursor: pointer; }
+.sync-indicator:hover, .sync-indicator:focus-visible, .sync-indicator[aria-expanded="true"], [data-state="attention"] > .sync-indicator { opacity: 1; }
+.sync-indicator:hover { background: var(--control-hover); }
+.sync-attention { position: absolute; top: 3px; right: 3px; font-size: 10px; line-height: 14px; width: 14px; border: 1px solid currentColor; border-radius: 50%; background: var(--bg-color); }
+.sync-panel { position: absolute; top: 48px; right: 0; width: min(300px, calc(100vw - 32px)); max-height: calc(var(--visible-height) - 110px); overflow-y: auto; padding: 14px; border: 1px solid var(--popup-border); border-radius: 8px; background: var(--popup-bg); box-shadow: 0 4px 18px var(--sidebar-shadow); }
+.sync-panel [role="status"] { margin: 0 0 10px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.sync-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sync-actions button { border: 1px solid var(--popup-border); border-radius: 4px; padding: 8px 10px; font-size: 12px; background: transparent; }
+.sync-actions button:hover { background: var(--control-hover); }
+.sync-spinning { animation: sync-turn 1.5s linear infinite; }
+@keyframes sync-turn { to { transform: rotate(360deg); } }
 @media (max-width: 639px) {
   .mobile-quiet, .main-content > .offline-readiness { display: none; }
   button, a { min-height: 44px; min-width: 44px; -webkit-tap-highlight-color: transparent; }
@@ -415,7 +440,7 @@ html, body { overscroll-behavior: none; }
   .main-content { padding-bottom: calc(44px + var(--keyboard-offset) + var(--bottom-safe)); }
   .editor { padding-left: 16px; padding-right: 16px; scrollbar-width: none; }
   .editor::-webkit-scrollbar { display: none; }
-  .placeholder { top: 50px; left: 16px; right: 16px; transform: none; }
+  .placeholder { top: 50px; left: 16px; right: 16px; width: auto; text-align: left; transform: none; }
   .entry-delete { opacity: .5; }
   .history-header button { min-height: 44px; min-width: 44px; }
 }

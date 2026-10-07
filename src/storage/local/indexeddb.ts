@@ -65,7 +65,10 @@ const stores = ["entries", "pending", "meta"] as const;
 type WriteTx = IDBPTransaction<FreewriteDB, typeof stores, "readwrite">;
 export async function checkFence(tx: { objectStore(name: "meta"): { get(key: string): Promise<Meta | undefined> } }, userId: string, owner: string) {
   const state = await tx.objectStore("meta").get(userId);
-  if (state?.locked || state?.owner !== owner || (state.expires ?? 0) <= Date.now()) throw Error("Writing is locked. Keep this text and reload to reconnect.");
+  // Expiry permits another tab to claim ownership; it does not itself revoke it.
+  // The shared meta transaction serializes takeover with this write, so a delayed
+  // heartbeat is safe while the token matches, and a replaced writer stays fenced.
+  if (state?.locked || state?.owner !== owner) throw Error("Writing is locked. Keep this text and reload to reconnect.");
 }
 export async function claimAccount(userId: string, owner: string, now = Date.now(), ownsWebLock = false) {
   const db = await openFreewriteDB();

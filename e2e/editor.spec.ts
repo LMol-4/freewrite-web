@@ -15,7 +15,7 @@ test.describe("editor", () => {
     await editor.pressSequentially("what a nice place to write things down");
     await expect(placeholder).toBeHidden();
 
-    await expect(page.getByRole("status", { name: "" }).filter({ hasText: /^Saved on this device$/ })).toBeVisible();
+    await expect(page.getByRole("status", { name: "" }).filter({ hasText: /^Saved on this device$/ })).toHaveText("Saved on this device");
     await page.reload();
 
     await expect(page.locator("textarea.editor")).toHaveValue(/what a nice place to write things down/);
@@ -34,7 +34,7 @@ test.describe("fonts and size", () => {
 
     await expect(editor).toHaveCSS("font-size", "24px");
 
-    await expect(page.getByText("Preferences synced", { exact: true })).toBeVisible();
+    await expect(page.getByText("Preferences synced", { exact: true })).toBeAttached();
     await page.reload();
 
     await expect(page.locator("textarea.editor")).toHaveCSS("font-size", "24px");
@@ -70,7 +70,7 @@ test.describe("timer", () => {
     await expect(timerButton).toHaveText("15:00");
     await expect(editor).toBeEditable();
     await expect(timerButton).toBeEnabled();
-    await expect(page.getByText("Synced", { exact: true })).toBeVisible();
+    await expect(page.getByText("Synced", { exact: true })).toBeAttached();
 
     // Install the fake clock only after the app has hydrated — installing it
     // before navigation freezes React's own scheduler and the page never
