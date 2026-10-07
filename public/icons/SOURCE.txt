@@ -1,0 +1,4 @@
+Source: freewrite-orginal/assets/icon.ico
+SHA-256: 7dfad100df2c748e734e04b8bb3d2ddbf260c1ff6d6b29aee07ccda76f349f6e
+Largest PNG: 256px. Upscaling approved by owner 2026-10-07 (MAN-3).
+Generated with existing Next sharp dependency; maskable artwork enclosed within radius 40%.

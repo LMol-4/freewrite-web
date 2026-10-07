@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import { lato, notoSerifKannada, ebGaramond, libreBaskerville } from "@/src/fonts";
 import "./globals.css";
@@ -6,7 +6,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Freewrite",
   description: "A distraction-free freewriting app",
+  appleWebApp: { capable: true, title: "Freewrite", statusBarStyle: "default" },
+  icons: { apple: "/icons/icon-180.v1.png" },
 };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#ffffff" };
 
 // §9 Theming: applies `data-theme` before first paint so a dark-mode user
 // never sees a white flash. `beforeInteractive` runs this in <head>, before
@@ -25,6 +28,8 @@ const THEME_INIT_SCRIPT = `
       }
     }
     document.documentElement.setAttribute("data-theme", theme);
+    var color = document.querySelector('meta[name="theme-color"]');
+    if (color) color.setAttribute("content", theme === "dark" ? "#1e1e1e" : "#ffffff");
   } catch (e) {
     document.documentElement.setAttribute("data-theme", "light");
   }
