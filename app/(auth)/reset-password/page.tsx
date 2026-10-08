@@ -10,9 +10,9 @@ export default function ResetPasswordPage() {
   return (
     <div className="auth-page">
       <form action={formAction} className="auth-form">
-        <h1>Set a new password</h1>
+        <h1>set a new password</h1>
         <label>
-          New password
+          new password
           <input
             type="password"
             name="password"
@@ -21,9 +21,9 @@ export default function ResetPasswordPage() {
             minLength={8}
           />
         </label>
-        {error && <p role="alert" className="auth-error">{error}</p>}
+        {error && <p role="alert" className="auth-error">{error.charAt(0).toLowerCase() + error.slice(1)}</p>}
         <button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Save password"}
+          {pending ? "saving…" : "save password"}
         </button>
       </form>
     </div>

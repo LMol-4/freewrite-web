@@ -4,9 +4,9 @@ import { lato, notoSerifKannada, ebGaramond, libreBaskerville } from "@/src/font
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Freewrite",
-  description: "A distraction-free freewriting app",
-  appleWebApp: { capable: true, title: "Freewrite", statusBarStyle: "default" },
+  title: "freewrite",
+  description: "a distraction-free freewriting app",
+  appleWebApp: { capable: true, title: "freewrite", statusBarStyle: "default" },
   icons: { apple: "/icons/icon-180.v1.png" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover", themeColor: "#ffffff" };

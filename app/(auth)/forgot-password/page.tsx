@@ -14,9 +14,9 @@ export default function ForgotPasswordPage() {
     return (
       <div className="auth-page">
         <div className="auth-form">
-          <h1>Check your email</h1>
-          <p>We sent a link to reset your password.</p>
-          <p className="auth-links"><Link scroll={false} href="/sign-in">Back to sign in</Link></p>
+          <h1>check your email</h1>
+          <p>we sent a link to reset your password.</p>
+          <p className="auth-links"><Link scroll={false} href="/sign-in">back to sign in</Link></p>
         </div>
       </div>
     );
@@ -25,17 +25,17 @@ export default function ForgotPasswordPage() {
   return (
     <div className="auth-page">
       <form action={formAction} className="auth-form">
-        <h1>Forgot password</h1>
+        <h1>forgot password</h1>
         <label>
-          Email
+          email
           <input type="email" name="email" autoComplete="email" required />
         </label>
-        {state.status === "error" && <p role="alert" className="auth-error">{state.message}</p>}
+        {state.status === "error" && <p role="alert" className="auth-error">{state.message.charAt(0).toLowerCase() + state.message.slice(1)}</p>}
         <button type="submit" disabled={pending}>
-          {pending ? "Sending…" : "Send reset link"}
+          {pending ? "sending…" : "send reset link"}
         </button>
         <p className="auth-links">
-          <Link scroll={false} href="/sign-in">Back to sign in</Link>
+          <Link scroll={false} href="/sign-in">back to sign in</Link>
         </p>
       </form>
     </div>

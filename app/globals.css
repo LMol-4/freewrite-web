@@ -296,7 +296,7 @@ body {
 .public-content { width: 100%; max-width: 651px; padding: 50px; display: flex; flex-direction: column; align-items: flex-start; gap: 22px; }
 .public-links { display: flex; gap: 28px; font-size: 18px; letter-spacing: -.7px; line-height: 1.5; }
 .public-page a { color: #0099ff; text-decoration: underline; text-underline-offset: 3px; }
-.public-page h1, .public-page .public-brand { font-size: 50px; font-weight: 900; letter-spacing: -2.1px; line-height: 1.2; color: #111; text-decoration: none; }
+.public-page h1 { font-size: 50px; font-weight: 900; letter-spacing: -2.1px; line-height: 1.2; color: #111; text-decoration: none; }
 .public-description { font-size: 21px; letter-spacing: -.5px; line-height: 1.5; color: #888; }
 .public-page .public-button, .public-page .auth-form button { display: inline-block; padding: 15px 20px; border: 0; border-radius: 8px; background: #f7f7f7; color: #555; font-size: 16px; line-height: 1.2; text-decoration: none; cursor: pointer; }
 .public-page .public-button:hover, .public-page .auth-form button:hover { background: #ededed; }
@@ -310,7 +310,7 @@ body {
 .public-page .auth-error { margin: 0; }
 @media (max-width: 639px) {
   .public-content { padding: 32px 24px; }
-  .public-page h1, .public-page .public-brand { font-size: 40px; letter-spacing: -1.6px; }
+  .public-page h1 { font-size: 40px; letter-spacing: -1.6px; }
 }
 
 .auth-form {

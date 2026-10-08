@@ -11,24 +11,24 @@ export default function SignInPage() {
   return (
     <div className="auth-page">
       <form action={formAction} className="auth-form">
-        <h1>Sign in</h1>
+        <h1>sign in</h1>
         <label>
-          Email
+          email
           <input type="email" name="email" autoComplete="email" required />
         </label>
         <label>
-          Password
+          password
           <input type="password" name="password" autoComplete="current-password" required />
         </label>
-        {error && <p role="alert" className="auth-error">{error}</p>}
+        {error && <p role="alert" className="auth-error">{error.charAt(0).toLowerCase() + error.slice(1)}</p>}
         <button type="submit" disabled={pending}>
-          {pending ? "Signing in…" : "Sign in"}
+          {pending ? "signing in…" : "sign in"}
         </button>
         <p className="auth-links">
-          <Link scroll={false} href="/forgot-password">Forgot password?</Link>
+          <Link scroll={false} href="/forgot-password">forgot password?</Link>
         </p>
         <p className="auth-links">
-          No account? <Link scroll={false} href="/sign-up">Sign up</Link>
+          no account? <Link scroll={false} href="/sign-up">sign up</Link>
         </p>
       </form>
     </div>

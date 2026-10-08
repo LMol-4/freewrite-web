@@ -14,9 +14,9 @@ export function localClients() {
 }
 export interface Account { id: string; email: string; password: string }
 export async function login(page: Page, account: Account) {
-  await page.goto("/sign-in"); await page.getByLabel("Email", { exact: true }).fill(account.email);
-  await page.getByLabel("Password", { exact: true }).fill(account.password);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.goto("/sign-in"); await page.getByLabel("email", { exact: true }).fill(account.email);
+  await page.getByLabel("password", { exact: true }).fill(account.password);
+  await page.getByRole("button", { name: "sign in", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Freewrite entry" })).toBeVisible();
 }
 export const test = base.extend<{ account: Account; createAccount: () => Promise<Account> }>({
