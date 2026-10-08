@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  outputFileTracingIncludes: { "/docs/mcp-setup.md": ["./src/mcp/setup.md"] },
   async headers() {
     return [
       {
