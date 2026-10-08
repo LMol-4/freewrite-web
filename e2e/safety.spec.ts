@@ -43,12 +43,11 @@ test("preferences propagate through the server into an independent browser conte
 test("account B cannot see A's local writing after an external session change or Back", async ({ page, createAccount }) => {
   await page.getByRole("textbox", { name: "Freewrite entry" }).fill("private A retained");
   await expect(page.locator('.sync-status')).toHaveAttribute('data-local', 'Saved on this device');
+  await page.context().clearCookies();
   const b = await createAccount(); await login(page, b);
   await expect(page.getByRole("textbox", { name: "Freewrite entry" })).toHaveValue("\n\n");
   await page.goBack();
-  await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "Freewrite entry" })).toBeHidden();
-  await login(page, b);
+  await expect(page.getByRole("textbox", { name: "Freewrite entry" })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Freewrite entry" })).not.toHaveValue("private A retained");
 });
 test("RLS and Storage reject anonymous and cross-account access", async ({ account, createAccount }) => {

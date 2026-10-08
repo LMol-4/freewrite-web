@@ -79,6 +79,9 @@ test("offline preferences retry after reconnect and are visible to a fresh conte
 });
 test("account change in another tab hides the old account's buffer", async ({ page, context, createAccount }) => {
   await page.getByRole("textbox", { name: "Freewrite entry" }).fill("A only"); await expect(page.locator('.sync-status')).toHaveAttribute('data-local', 'Saved on this device');
+  // Simulate credentials being replaced outside this tab. Authenticated users
+  // now correctly skip the sign-in form, so expire cookies before signing in.
+  await context.clearCookies();
   const b = await createAccount(); const second = await context.newPage(); await login(second, b);
   await expect(page.getByRole("textbox", { name: "Freewrite entry" })).toBeHidden(); await expect(second.getByRole("textbox", { name: "Freewrite entry" })).toHaveValue("\n\n"); await second.close();
 });

@@ -16,6 +16,7 @@ export default function SignUpPage() {
         <div className="auth-form">
           <h1>Check your email</h1>
           <p>We sent a confirmation link. Click it to finish creating your account.</p>
+          <p className="auth-links"><Link scroll={false} href="/sign-in">Back to sign in</Link></p>
         </div>
       </div>
     );
@@ -39,12 +40,12 @@ export default function SignUpPage() {
             minLength={8}
           />
         </label>
-        {state.status === "error" && <p className="auth-error">{state.message}</p>}
+        {state.status === "error" && <p role="alert" className="auth-error">{state.message}</p>}
         <button type="submit" disabled={pending}>
           {pending ? "Signing up…" : "Sign up"}
         </button>
         <p className="auth-links">
-          Already have an account? <Link href="/sign-in">Sign in</Link>
+          Already have an account? <Link scroll={false} href="/sign-in">Sign in</Link>
         </p>
       </form>
     </div>

@@ -288,6 +288,28 @@ body {
   width: 100%;
 }
 
+/* Public pages share the original Freewrite site's typography and spacing. */
+.public-page { height: 100dvh; overflow-y: auto; background: #fff; color: #111; }
+.public-content { width: 100%; max-width: 651px; padding: 50px; display: flex; flex-direction: column; align-items: flex-start; gap: 22px; }
+.public-links { display: flex; gap: 28px; font-size: 18px; letter-spacing: -.7px; line-height: 1.5; }
+.public-page a { color: #0099ff; text-decoration: underline; text-underline-offset: 3px; }
+.public-page h1, .public-page .public-brand { font-size: 50px; font-weight: 900; letter-spacing: -2.1px; line-height: 1.2; color: #111; text-decoration: none; }
+.public-description { font-size: 21px; letter-spacing: -.5px; line-height: 1.5; color: #888; }
+.public-page .public-button, .public-page .auth-form button { display: inline-block; padding: 15px 20px; border: 0; border-radius: 8px; background: #f7f7f7; color: #555; font-size: 16px; line-height: 1.2; text-decoration: none; cursor: pointer; }
+.public-page .public-button:hover, .public-page .auth-form button:hover { background: #ededed; }
+.public-page .auth-page { display: block; height: auto; }
+.public-page .auth-form { padding: 0; max-width: 360px; gap: 18px; }
+.public-page .auth-form h1 { font-size: 28px; letter-spacing: -.7px; margin: 0; }
+.public-page .auth-form label { font-size: 16px; color: #777; }
+.public-page .auth-form input { padding: 14px 15px; border: 2px solid #e3e3e3; border-radius: 8px; background: #fff; color: #111; font-size: 16px; width: 100%; }
+.public-page .auth-form input:focus-visible { outline: 2px solid #0099ff; outline-offset: 2px; }
+.public-page .auth-links, .public-back { font-size: 16px; color: #777; }
+.public-page .auth-error { margin: 0; }
+@media (max-width: 639px) {
+  .public-content { padding: 32px 24px; }
+  .public-page h1, .public-page .public-brand { font-size: 40px; letter-spacing: -1.6px; }
+}
+
 .auth-form {
   display: flex;
   flex-direction: column;

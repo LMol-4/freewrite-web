@@ -21,7 +21,7 @@ export default function ResetPasswordPage() {
             minLength={8}
           />
         </label>
-        {error && <p className="auth-error">{error}</p>}
+        {error && <p role="alert" className="auth-error">{error}</p>}
         <button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save password"}
         </button>
