@@ -32,6 +32,15 @@ export function McpConnector({ userId, origin }: { userId: string; origin: strin
     return result.credential as Credential | null;
   }, []);
 
+  const loadKey = useCallback(() => {
+    return request("ensure").then(value => {
+      if (!value) throw Error("Could not load your key. Please try again.");
+      if (valid.current) { setError(""); setCredential(value); setLoaded(true); }
+    }).catch(cause => {
+      if (valid.current) setError(cause instanceof Error ? cause.message : "Could not load your key. Please try again.");
+    }).finally(() => { if (valid.current) setBusy(false); });
+  }, [request]);
+
   useEffect(() => {
     valid.current = true;
     const invalidate = () => { valid.current = false; setSessionValid(false); setSecret(null); setCredential(null); setRotate(false); };
@@ -41,10 +50,9 @@ export function McpConnector({ userId, origin }: { userId: string; origin: strin
     const hide = () => setSecret(null);
     document.addEventListener("visibilitychange", hide);
     window.addEventListener("pagehide", hide);
-    void request().then(value => { if (valid.current) { setCredential(value); setLoaded(true); } })
-      .catch(() => { if (valid.current) setError("Could not load your key. Try reloading this page."); });
+    void loadKey();
     return () => { valid.current = false; data.subscription.unsubscribe(); document.removeEventListener("visibilitychange", hide); window.removeEventListener("pagehide", hide); };
-  }, [request, userId]);
+  }, [loadKey, userId]);
 
   async function perform(work: () => Promise<void>) {
     setBusy(true); setError(""); setStatus("");
@@ -55,26 +63,28 @@ export function McpConnector({ userId, origin }: { userId: string; origin: strin
     if (secret) { setSecret(null); return; }
     await perform(async () => {
       const current = await request("reveal");
-      if (!current?.key) throw Error("Generate a key first.");
+      if (!current?.key) throw Error("Could not load your key. Please try again.");
       setCredential({ ...current, key: undefined });
       if (document.visibilityState === "visible") setSecret(current.key);
     });
   }
   async function copyKey() {
+    setSecret(null);
     await perform(async () => {
       const current = await request("reveal");
-      if (!current?.key) throw Error("Generate a key first.");
+      if (!current?.key) throw Error("Could not load your key. Please try again.");
       setCredential({ ...current, key: undefined });
       try { await navigator.clipboard.writeText(current.key); setStatus("Key copied."); }
       catch { throw Error("Could not copy. Reveal your key, then select and copy it manually."); }
     });
   }
   async function replace() {
+    if (!credential) return;
     setSecret(null);
     await perform(async () => {
-      setCredential(await request("replace", credential?.generation ?? null));
+      setCredential(await request("replace", credential.generation));
       setLoaded(true); setRotate(false);
-      setStatus(credential ? "Key rotated. Update the key in each connected agent." : "Key generated. Copy it into your agent's connection settings.");
+      setStatus("Key rotated. Update the key in each connected agent.");
     });
   }
   async function copyPrompt() {
@@ -94,7 +104,7 @@ export function McpConnector({ userId, origin }: { userId: string; origin: strin
       <h2 id="mcp-key-heading">Your API key</h2>
       <p className="connector-muted">One key for all your agents. You can reveal or copy it whenever you need it.</p>
       {!loaded && !error && sessionValid && <p role="status">Loading your key…</p>}
-      {credential ? <>
+      {credential && <>
         <div className="connector-key">
           <input aria-label="API key" type={secret ? "text" : "password"} readOnly autoComplete="off" spellCheck={false}
             value={secret ?? "••••••••••••••••••••••••"} onFocus={event => { if (secret) event.currentTarget.select(); }} />
@@ -110,7 +120,9 @@ export function McpConnector({ userId, origin }: { userId: string; origin: strin
           <button type="button" ref={rotateRef} disabled={disabled} onClick={() => setRotate(true)}>Rotate key</button>
         </div>
         <p className="connector-small">Created {new Date(credential.createdAt).toLocaleDateString()}{credential.lastUsedAt ? " · Last used " + new Date(credential.lastUsedAt).toLocaleDateString() : " · Not used yet"}</p>
-      </> : <button type="button" disabled={disabled} onClick={() => void replace()}>Generate API key</button>}
+      </>}
+      {error && !rotate && <p role="alert">{error}</p>}
+      {!credential && error && sessionValid && <button type="button" disabled={busy} onClick={() => { setError(""); setBusy(true); void loadKey(); }}>Retry</button>}
     </section>
     <section aria-labelledby="mcp-setup-heading">
       <h2 id="mcp-setup-heading">Connect your agent</h2>
@@ -125,8 +137,7 @@ export function McpConnector({ userId, origin }: { userId: string; origin: strin
       </details>
     </section>
     <p className="connector-muted connector-small">Works with agents that support API-key-authenticated MCP servers. Only notes synced to your account are available.</p>
-    {error && <p role="alert">{error}</p>}
-    <p role="status" aria-live="polite">{busy ? "Working…" : status}</p>
+    <p role="status" aria-live="polite">{loaded && busy ? "Working…" : status}</p>
     {rotate && <ConfirmDialog title="Rotate API key?" openerRef={rotateRef} onCancel={() => { if (!busy) setRotate(false); }}>
       <p>Your old key will stop working immediately. Update the key in every agent you have connected.</p>
       {error && <p role="alert">{error}</p>}
