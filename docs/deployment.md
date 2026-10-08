@@ -27,7 +27,10 @@ deployment branches to `main`. Add these environment secrets:
 
 Scope the Supabase token to this project. Grant **Project Settings**, **API Keys**,
 and **API Key Secrets** Read permissions for `supabase link`, plus **Database Read**
-for the schema verification query. SQL migrations authenticate with the database
+for the schema verification query. Also grant **Connection Pooling → Read**:
+the pinned CLI reads the session-pooler connection settings so hosted runners
+can connect without depending on direct-database IPv6 access.
+SQL migrations authenticate with the database
 password. Do not add required environment reviewers if you want automatic releases.
 
 Add these environment variables in the same GitHub environment:
