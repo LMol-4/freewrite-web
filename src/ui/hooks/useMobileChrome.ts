@@ -24,7 +24,9 @@ export function useMobileChrome(complete: boolean) {
     return () => { cancelAnimationFrame(frame); window.removeEventListener("resize", update); visualViewport?.removeEventListener("resize", update); visualViewport?.removeEventListener("scroll", update); };
   }, []);
   useEffect(() => {
-    if (complete) setHidden(false);
+    if (!complete) return;
+    const frame = requestAnimationFrame(() => setHidden(false));
+    return () => cancelAnimationFrame(frame);
   }, [complete]);
   const reveal = useCallback(() => { typing.current = { first: 0, last: 0 }; setHidden(false); }, []);
   const input = useCallback(() => {
