@@ -10,9 +10,9 @@ export function PublicPage({ children }: { children: ReactNode }) {
 export function LandingPage() {
   return <PublicPage>
     <nav className="public-links" aria-label="Project links">
-      <a href="https://www.lukemolony.com">by luke</a>
-      <a href="https://github.com/LMol-4/freewrite-web">repo</a>
-      <a href="https://github.com/farzaa/freewrite">fork of</a>
+      <a href="https://www.lukemolony.com" target="_blank" rel="noopener noreferrer">by luke</a>
+      <a href="https://github.com/LMol-4/freewrite-web" target="_blank" rel="noopener noreferrer">repo</a>
+      <a href="https://github.com/farzaa/freewrite" target="_blank" rel="noopener noreferrer">fork of</a>
     </nav>
     <h1>hi, this is freewrite.</h1>
     <p className="public-description">it&apos;s an upgraded web port i made for myself.</p>

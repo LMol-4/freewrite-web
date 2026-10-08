@@ -45,7 +45,7 @@ export function Writer({ userId, initialPlaceholder, offline = false }: { userId
   const preferences = usePreferences(userId, entries.owner, authenticated);
   const { theme, font, fontSize, setTheme, setFont, setFontSize } = preferences;
   const timer = useTimer();
-  const chrome = useMobileChrome(timer.status === "running", timer.status === "complete");
+  const chrome = useMobileChrome(timer.status === "complete");
   const signOut = useSignOut({ userId, owner: entries.owner, flush: entries.flush, flushRemote: entries.flushRemote, settle: entries.settle, quiesce: entries.quiesce, resume: entries.resume, flushPreferences: preferences.flush, settlePreferences: preferences.settle, broadcastLock: entries.broadcastLock, suspend: entries.suspend, quiescePreferences: preferences.quiesce, resumePreferences: preferences.resume });
   const placeholder = initialPlaceholder;
   const { suspend } = entries;
@@ -153,7 +153,9 @@ export function Writer({ userId, initialPlaceholder, offline = false }: { userId
           <div className={`mobile-bar${chrome.hidden ? " chrome-hidden" : ""}`} inert={chrome.hidden}>
             <button type="button" ref={menuRef} aria-label="Menu" disabled={syncDisabled} onClick={() => setMenuOpen(true)}>☰</button>
             <div className="timer-controls"><button type="button" className="control-item" onClick={event => { if (event.detail > 0) event.currentTarget.blur(); timer.toggle(); }}>{timer.label}</button><ResetTimerButton onClick={() => { timer.reset(); chrome.reveal(); }} /></div>
-            <button type="button" ref={historyRef} aria-label="History" disabled={syncDisabled} onClick={() => setHistoryOpen(true)}>◷</button>
+            <button type="button" ref={historyRef} aria-label="History" disabled={syncDisabled} onClick={() => setHistoryOpen(true)}>
+              <svg className="mobile-history-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+            </button>
           </div>
           {chrome.hidden && <button type="button" className="reveal-controls" aria-label="Show controls" onClick={chrome.reveal}
             onPointerDown={e => e.currentTarget.setPointerCapture(e.pointerId)} onPointerUp={chrome.reveal}>⌄</button>}

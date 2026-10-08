@@ -35,10 +35,11 @@ test('mobile sheets share preferences, history and AI actions', async ({ page },
   await page.screenshot({ path: testInfo.outputPath('mobile-writer.png'), animations: 'disabled' });
 });
 
-test('timer hides chrome but explicit reveal can pause it', async ({ page }) => {
+test('timer keeps chrome visible and can be paused directly', async ({ page }) => {
   await page.getByRole('button', { name: '15:00', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Show controls' })).toBeVisible();
-  await page.getByRole('button', { name: 'Show controls' }).click();
+  await expect(page.locator('.mobile-bar')).not.toHaveAttribute('inert', '');
+  await expect(page.locator('.mobile-bar')).toHaveCSS('opacity', '1');
+  await expect(page.getByRole('button', { name: 'Show controls' })).toHaveCount(0);
   const timer = page.locator('.mobile-bar button').nth(1);
   await expect(timer).toBeVisible();
   await timer.click();
@@ -61,14 +62,15 @@ test('continuous typing hides chrome, pause leaves it hidden and keyboard reveal
   await expect(editor).toHaveValue(/continuous typing keeps going/);
 });
 
-test('keyboard timer stays available and completion reveals pointer-hidden controls', async ({ page }) => {
+test('keyboard and pointer timer activation keep controls available through completion', async ({ page }) => {
   await expect(page.getByRole('textbox', { name: 'Freewrite entry' })).toBeEditable();
   await page.clock.install();
   const timer = page.getByRole('button', { name: '15:00', exact: true });
   await timer.focus(); await page.keyboard.press('Enter');
   await expect(page.locator('.mobile-bar')).not.toHaveAttribute('inert', '');
   await page.keyboard.press('Enter'); await timer.click();
-  await expect(page.getByRole('button', { name: 'Show controls' })).toBeVisible();
+  await expect(page.locator('.mobile-bar')).not.toHaveAttribute('inert', '');
+  await expect(page.getByRole('button', { name: 'Show controls' })).toHaveCount(0);
   await page.clock.fastForward(15 * 60 * 1000);
   await expect(page.locator('textarea.editor')).toHaveClass(/faded/);
   await expect(page.locator('.mobile-bar')).not.toHaveAttribute('inert', '');
@@ -80,13 +82,20 @@ test('viewport offsets clamp and controls fit small landscape viewports', async 
     Object.defineProperty(window.visualViewport, 'offsetTop', { configurable: true, value: 20 });
     window.visualViewport!.dispatchEvent(new Event('resize'));
   });
-  await expect(page.locator('.mobile-bar')).toHaveCSS('bottom', '424px');
+  await expect(page.locator('.mobile-bar')).toHaveCSS('top', '376px');
+  // Some mobile browsers shrink innerHeight while fixed positioning still uses the layout viewport.
+  await page.evaluate(() => {
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 400 });
+    window.visualViewport!.dispatchEvent(new Event('resize'));
+  });
+  await expect(page.locator('.mobile-bar')).toHaveCSS('top', '376px');
+  expect((await page.locator('.mobile-bar').boundingBox())!.y + 44).toBe(420);
   await page.evaluate(() => {
     Object.defineProperty(window.visualViewport, 'height', { configurable: true, value: 1000 });
     window.visualViewport!.dispatchEvent(new Event('scroll'));
   });
-  await expect(page.locator('.mobile-bar')).toHaveCSS('bottom', '0px');
-  await page.evaluate(() => { delete (window.visualViewport as unknown as Record<string, unknown>).height; delete (window.visualViewport as unknown as Record<string, unknown>).offsetTop; });
+  await expect(page.locator('html')).toHaveCSS('--keyboard-offset', '0px');
+  await page.evaluate(() => { delete (window as unknown as Record<string, unknown>).innerHeight; delete (window.visualViewport as unknown as Record<string, unknown>).height; delete (window.visualViewport as unknown as Record<string, unknown>).offsetTop; });
   await page.setViewportSize({ width: 600, height: 320 });
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   const menu = page.getByRole('dialog', { name: 'Menu', exact: true });
