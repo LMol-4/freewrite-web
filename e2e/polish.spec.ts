@@ -34,7 +34,10 @@ for (const mobile of [false, true]) test(`timer reset and borderless writing (${
   await page.clock.install();
   await page.getByRole('button', { name: '15:00', exact: true }).click();
   await page.clock.fastForward(65000);
-  if (mobile) await page.getByRole('button', { name: 'Show controls' }).click();
+  if (mobile) {
+    await expect(page.getByRole('button', { name: 'Show controls' })).toHaveCount(0);
+    await expect(page.locator('.mobile-bar')).not.toHaveAttribute('inert', '');
+  }
   await page.getByRole('button', { name: 'Reset timer', exact: true }).click();
   await expect(page.getByRole('button', { name: '15:00', exact: true })).toBeVisible();
   await page.clock.fastForward(5000);
@@ -43,7 +46,10 @@ for (const mobile of [false, true]) test(`timer reset and borderless writing (${
   await expect(editor).toHaveValue('The timer reset must preserve this writing.');
   await page.getByRole('button', { name: '15:00', exact: true }).click();
   await page.clock.fastForward(3000);
-  if (mobile) await page.getByRole('button', { name: 'Show controls' }).click();
+  if (mobile) {
+    await expect(page.getByRole('button', { name: 'Show controls' })).toHaveCount(0);
+    await expect(page.locator('.mobile-bar')).not.toHaveAttribute('inert', '');
+  }
   await page.getByRole('button', { name: '14:57', exact: true }).click();
   await page.getByRole('button', { name: 'Reset timer', exact: true }).click();
   await page.getByRole('button', { name: '15:00', exact: true }).click();
