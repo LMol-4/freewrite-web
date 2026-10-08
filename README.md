@@ -16,7 +16,8 @@ switch themes, or go fullscreen. Once prepared, the app can reopen offline too.
 ## Development
 
 Use Node 22, pnpm 11.10.0, and a local Supabase stack (Docker required).
-Copy `.env.example` to `.env.local` and fill in your local configuration.
+Copy [.env.example](.env.example) to `.env.local` and fill in your local configuration.
+For hosting, apply the Supabase migrations and set the same environment variables.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -34,8 +35,6 @@ pnpm build
 
 Open the plug icon to connect agents with read-only access to synced notes.
 Your API key is created automatically and can be revealed, copied, or rotated.
-For hosting, apply the Supabase migrations and configure the variables in
-[.env.example](.env.example).
 
 ## Future implementations
 
