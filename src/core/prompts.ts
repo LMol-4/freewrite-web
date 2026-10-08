@@ -72,7 +72,9 @@ export interface ChatDispatch {
 export function buildChatDispatch(destination: ChatDestination, entry: string): ChatDispatch {
   const { prompt, base, bareUrl } = DESTINATIONS[destination];
   const body = prompt + "\n\n" + entry.trim();
-  const url = base + encodeURIComponent(body);
+  // A pasted or partially deleted surrogate must not crash the clipboard flow.
+  // Unicode mode matches lone surrogates only; complete emoji stay intact.
+  const url = base + encodeURIComponent(body.replace(/[\uD800-\uDFFF]/gu, "\uFFFD"));
   return {
     body,
     url,

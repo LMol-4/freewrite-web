@@ -26,8 +26,10 @@ export function useTimer() {
       setState((current) => tick(current, Date.now()));
     }, TICK_INTERVAL_MS);
     const wake = () => setState(current => tick(current, Date.now()));
+    const visible = () => { if (document.visibilityState === "visible") wake(); };
     window.addEventListener("focus", wake);
-    return () => { clearInterval(interval); window.removeEventListener("focus", wake); };
+    document.addEventListener("visibilitychange", visible);
+    return () => { clearInterval(interval); window.removeEventListener("focus", wake); document.removeEventListener("visibilitychange", visible); };
   }, [state.status]);
 
   useEffect(() => {
@@ -39,12 +41,13 @@ export function useTimer() {
   }, [state.status]);
 
   const handleToggle = useCallback(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio(CLICK_SOUND_SRC);
-    }
-    audioRef.current.currentTime = 0;
-    audioRef.current.play().catch(() => {});
     setState((current) => toggle(current, Date.now()));
+    // Audio is optional: media initialization/seeking can also throw synchronously.
+    try {
+      if (!audioRef.current) audioRef.current = new Audio(CLICK_SOUND_SRC);
+      audioRef.current.currentTime = 0;
+      void audioRef.current.play().catch(() => {});
+    } catch { /* The timer must still work when sound is unavailable. */ }
   }, []);
 
   return {

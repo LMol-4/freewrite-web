@@ -107,7 +107,14 @@ export function useEntries(userId: string, offline = false) {
           } else throw reason;
         }
         if (!cancelled) { current.current = committed; changed?.postMessage("changed"); }
-        await listHistory();
+        // The save already returned this row. Reading every stored body and
+        // sorting the account again on each keystroke makes large histories lag.
+        const saved = committed;
+        if (!cancelled && active.current) setHistory(rows => {
+          const found = rows.some(row => row.id === saved.id);
+          return found ? rows.map(row => row.id === saved.id ? saved : row)
+            : [...rows, saved].sort(newestFirst);
+        });
         engine?.schedule();
       }, (state, reason) => {
         if (cancelled || !active.current) return;

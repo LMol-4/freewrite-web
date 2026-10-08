@@ -1,4 +1,4 @@
-import type { Journal } from "./journal";
+import { cachedRemoteBody, type Journal } from "./journal";
 import { RemoteError, type RemoteStore } from "./types";
 
 export interface SyncEvents {
@@ -13,6 +13,7 @@ export interface SyncEvents {
 /** One drain per account coordinator; every network boundary is followed by session/fence checks. */
 export class EntrySync {
   private running: Promise<void> | null = null;
+  private queued: { reconcile: boolean; force: boolean } | null = null;
   private idle?: ReturnType<typeof setTimeout>;
   private maximum?: ReturnType<typeof setTimeout>;
   private retryTimer?: ReturnType<typeof setTimeout>;
@@ -41,8 +42,22 @@ export class EntrySync {
     this.cancelTimers();
     if (force) this.authPaused = false;
     if (this.authPaused) throw new RemoteError("Sign in again to sync. Local writing is retained.", "auth");
-    if (this.running) { await this.running; if (reconcile || force) return this.flush(reconcile, force); return; }
-    this.running = this.drain(reconcile, force).catch(error => {
+    if (this.running) {
+      // Focus, visibility and explicit saves can arrive together. Share one
+      // trailing pass, including changes made while the current pass is busy.
+      this.queued = { reconcile: reconcile || !!this.queued?.reconcile, force: force || !!this.queued?.force };
+      return this.running;
+    }
+    let failed = false;
+    this.running = (async () => {
+      let next: { reconcile: boolean; force: boolean } | null = { reconcile, force };
+      while (next) {
+        this.queued = null;
+        await this.drain(next.reconcile, next.force);
+        next = this.queued;
+      }
+    })().catch(error => {
+      failed = true;
       if (!this.stopped && this.events.active()) {
         this.authPaused = error instanceof RemoteError && error.kind === "auth";
         this.events.status(this.authPaused ? "Sign in again to sync. Local writing is retained." :
@@ -50,7 +65,13 @@ export class EntrySync {
         if (!this.authPaused && (!(error instanceof RemoteError) || error.kind === "retry")) this.retry(30000);
       }
       throw error;
-    }).finally(() => { this.running = null; });
+    }).finally(() => {
+      this.running = null;
+      const queued = this.queued;
+      this.queued = null;
+      // Cover requests arriving between the loop's completion and cleanup.
+      if (queued && !failed && !this.stopped) return this.flush(queued.reconcile, queued.force);
+    });
     return this.running;
   }
   private retry(delay: number) {
@@ -66,13 +87,13 @@ export class EntrySync {
       this.check(); const page = await this.remote.list(cursor); this.check();
       for (const row of page.rows) {
         if (seen.has(row.id)) continue; seen.add(row.id);
-        const local = (await this.journal.entries()).find(e => e.id === row.id);
+        const local = await this.journal.get(row.id);
         // Dirty base versions never advance on focus/listing.
         if (local?.dirty) continue;
         if (local?.baseServerVersion === row.version && (local.body !== null || this.events.selected() !== row.id)) continue;
-        let body: string | null = null;
-        if (!row.deleted_at && this.events.selected() === row.id) {
-          body = local?.revisionId === row.revision_id && local?.storagePath === row.storage_path && local.body !== null ? local!.body : await this.remote.body(row);
+        let body = cachedRemoteBody(local, row);
+        if (!row.deleted_at && this.events.selected() === row.id && body === null) {
+          body = await this.remote.body(row);
         }
         this.check(); await this.journal.adopt(row, body, local?.localGeneration);
       }
@@ -116,7 +137,7 @@ export class EntrySync {
             // A replayed older receipt is not the current canonical row.
             const canonical = await this.remote.get(entry.id); this.check();
             if (canonical && canonical.version > result.entry.version) {
-              const local = (await this.journal.entries()).find(e => e.id === entry.id);
+              const local = await this.journal.get(entry.id);
               if (local && !local.dirty) {
                 const body = canonical.deleted_at ? null : this.events.selected() === entry.id ? await this.remote.body(canonical) : null;
                 this.check(); await this.journal.adopt(canonical, body, local.localGeneration);

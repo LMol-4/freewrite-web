@@ -13,7 +13,11 @@ export class LocalSaveQueue {
   }
   private start() {
     if (this.running) return;
-    this.running = this.drain().finally(() => { this.running = null; });
+    this.running = this.drain().finally(() => {
+      this.running = null;
+      // Input can arrive after drain resolves but before this cleanup runs.
+      if (this.pending && this.failed === undefined) this.start();
+    });
   }
   private async drain() {
     while (this.pending) {
@@ -25,9 +29,11 @@ export class LocalSaveQueue {
     }
   }
   async flush() {
-    if (this.running) await this.running;
-    if (this.pending) { this.failed = undefined; this.start(); await this.running; }
-    if (this.failed) throw this.failed;
+    while (this.running || this.pending) {
+      if (!this.running) { this.failed = undefined; this.start(); }
+      await this.running;
+      if (this.failed !== undefined) throw this.failed;
+    }
   }
   get unsaved() { return !!this.pending || !!this.running; }
 }
