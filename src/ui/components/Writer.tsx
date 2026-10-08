@@ -125,6 +125,7 @@ export function Writer({ userId, initialPlaceholder, offline = false }: { userId
         {entry?.recovered && authenticated && <p role="status">Recovered copy · Read-only. <button type="button" disabled={syncDisabled} onClick={() => void entries.restoreEntry().then(focusEditor).catch(() => {})}>Restore as new entry</button></p>}
         {entry && entry.body !== null && authenticated && (
           <Editor
+            key={entry.id}
             value={entry.body}
             onChange={body => { setBody(body); chrome.input(); }}
             placeholder={placeholder}

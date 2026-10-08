@@ -150,6 +150,8 @@ body {
 /* Ported from `css/styles.css:241-274` (W3). */
 .bottom-toolbar {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   justify-content: space-between;
   align-items: center;
   padding: 15px 20px;
@@ -163,6 +165,7 @@ body {
 .left-controls,
 .right-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
 }
 
@@ -380,7 +383,7 @@ dialog { max-width: 34rem; border: 1px solid var(--popup-border); border-radius:
 dialog::backdrop { background: rgb(0 0 0 / .5); }
 dialog button { margin: 12px 12px 0 0; padding: 10px; }
 [role="status"], [role="alert"] { font-size: 13px; margin: 4px 16px; }
-@media (max-width: 640px) { button { min-height: 44px; min-width: 44px; } }
+@media (max-width: 639px) { button { min-height: 44px; min-width: 44px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 
 .history-panel {
@@ -388,7 +391,7 @@ dialog button { margin: 12px 12px 0 0; padding: 10px; }
   background: var(--sidebar-bg); box-shadow: -2px 0 10px var(--sidebar-shadow);
   z-index: 900; overflow-y: auto; animation: history-enter .2s ease;
 }
-@media (min-width: 641px) { .history-visible .main-content { margin-right: 250px; } }
+@media (min-width: 640px) { .history-visible .main-content { margin-right: 250px; } }
 @keyframes history-enter { from { transform: translateX(100%); } to { transform: translateX(0); } }
 .history-header { display: flex; align-items: center; padding: 15px; gap: 8px; border-bottom: 1px solid var(--separator-color); }
 .history-header h2 { flex: 1; font-size: 16px; font-weight: normal; }
