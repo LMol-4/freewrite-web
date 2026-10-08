@@ -131,7 +131,9 @@ jobs:
           version: 2.75.0
       - run: pnpm install --frozen-lockfile
       - name: Install deployment CLI
-        run: pnpm add --global vercel@50.0.1
+        # setup-node provides npm's global bin on PATH. Avoid pnpm's separate
+        # global-bin configuration; app dependencies still use locked pnpm.
+        run: npm install --global vercel@50.0.1
       - name: Build staged production deployment on Vercel
         id: stage
         shell: bash
