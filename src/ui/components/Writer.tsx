@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { PlugIcon } from "./PlugIcon";
 
 import { otherTheme } from "@/src/core/theme";
 import { Editor } from "@/src/ui/components/Editor";
@@ -30,6 +32,8 @@ import { SyncStatus } from "./SyncStatus";
 import { ResetTimerButton } from "./ResetTimerButton";
 
 export function Writer({ userId, initialPlaceholder, offline = false }: { userId: string; initialPlaceholder: string; offline?: boolean }) {
+  const router = useRouter();
+  const [connectorError, setConnectorError] = useState("");
   const entries = useEntries(userId, offline);
   const readiness = useOfflineReadiness();
   const signOutRef = useRef<HTMLButtonElement>(null);
@@ -52,6 +56,10 @@ export function Writer({ userId, initialPlaceholder, offline = false }: { userId
   const { flushRemote } = entries;
   const { flush: flushPreferences } = preferences;
   const syncDisabled = entries.readOnly || !authenticated || signOut.busy || signOut.confirm || entries.busy || !!deleting;
+  async function openConnector() {
+    try { await entries.flush(); router.push("/connect"); }
+    catch { setConnectorError("Could not save local writing. Retry before opening the connector."); }
+  }
   function focusEditor() { requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>("textarea.editor")?.focus()); }
   async function openEntry(id: string) { try { await entries.openEntry(id); setHistoryOpen(false); focusEditor(); } catch {} }
   async function newEntry() { try { await entries.newEntry(); setHistoryOpen(false); focusEditor(); } catch {} }
@@ -113,6 +121,7 @@ export function Writer({ userId, initialPlaceholder, offline = false }: { userId
           preferenceError={preferences.error} localError={!!entries.error} readiness={readiness} disabled={syncDisabled}
           onSync={() => void Promise.all([entries.flushRemote(), preferences.flush()]).catch(() => {})}
           onRetryPreferences={() => void preferences.flush().catch(() => {})} />
+        {connectorError && <p role="alert">{connectorError}</p>}
         {!authenticated && <p role="alert">Your session changed. Local writing is retained. <a href="/sign-in">Sign in again</a>.</p>}
         {entries.legacyCount > 0 && <p role="status">{entries.legacyCount} legacy entries are preserved separately. Their account ownership needs to be decided before import.</p>}
         {entries.readOnly && <p role="status">{entries.status}</p>}
@@ -141,6 +150,7 @@ export function Writer({ userId, initialPlaceholder, offline = false }: { userId
             <div key="timer" className="timer-controls"><TimerButton label={timer.label} onClick={timer.toggle} /><ResetTimerButton onClick={timer.reset} /></div>,
             <ThemeToggle key="theme" theme={theme} onToggle={() => setTheme(otherTheme(theme))} />,
             entry && entry.body !== null && authenticated && <ChatControl key={entry.id} body={entry.body} />,
+            <button type="button" className="control-item" key="mcp" aria-label="MCP connector" title="MCP connector" onClick={() => void openConnector()}><PlugIcon /></button>,
             <FullscreenControl key="fullscreen" />,
             <button type="button" className="control-item" key="new" aria-label="New entry" title="New entry" onClick={() => void newEntry()}>+</button>,
             <button type="button" className="control-item" key="history" ref={historyRef} aria-label="History" aria-expanded={historyOpen} aria-controls="entry-history" onClick={() => setHistoryOpen(value => !value)}>
@@ -166,6 +176,7 @@ export function Writer({ userId, initialPlaceholder, offline = false }: { userId
               <FullscreenControl mobile />
               <button type="button" onClick={() => { setMenuOpen(false); void newEntry(); }}>New entry</button>
               <button type="button" onClick={() => { setMenuOpen(false); setMobileChat(true); }}>Send to AI</button>
+              <button type="button" className="control-item" onClick={() => void openConnector()}><PlugIcon />&nbsp; MCP connector</button>
               <button type="button" ref={signOutRef} onClick={() => { setMenuOpen(false); void signOut.signOut(); }}>Sign out</button>
               <button type="button" onClick={() => setMenuOpen(false)}>Close menu</button>
             </div>
