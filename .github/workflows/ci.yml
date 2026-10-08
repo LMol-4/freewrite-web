@@ -130,11 +130,13 @@ jobs:
         with:
           version: 2.75.0
       - run: pnpm install --frozen-lockfile
+      - name: Install deployment CLI
+        run: pnpm add --global vercel@50.0.1
       - name: Build staged production deployment on Vercel
         id: stage
         shell: bash
         run: |
-          deployment_url=$(pnpm dlx vercel@50.0.1 deploy --prod --skip-domain --yes --build-env SUPABASE_PROJECT_REF="$SUPABASE_PROJECT_REF" --token="$VERCEL_TOKEN")
+          deployment_url=$(vercel deploy --prod --skip-domain --yes --build-env SUPABASE_PROJECT_REF="$SUPABASE_PROJECT_REF" --token="$VERCEL_TOKEN")
           [[ "$deployment_url" =~ ^https://[a-zA-Z0-9.-]+\.vercel\.app$ ]] || { echo 'Invalid staged deployment URL'; exit 1; }
           echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
       - name: Link production database
@@ -146,4 +148,4 @@ jobs:
       - name: Promote verified deployment
         env:
           DEPLOYMENT_URL: ${{ steps.stage.outputs.url }}
-        run: pnpm dlx vercel@50.0.1 promote "$DEPLOYMENT_URL" --yes --token="$VERCEL_TOKEN"
+        run: vercel promote "$DEPLOYMENT_URL" --yes --token="$VERCEL_TOKEN"
