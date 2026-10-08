@@ -2,6 +2,11 @@ import { checkFence, openFreewriteDB, type LocalEntry } from "../local/indexeddb
 import { digest, type Mutation, type RemoteEntry, type Cleanup } from "./types";
 
 const stores = ["entries", "pending", "outbox", "cleanup", "meta"] as const;
+/** Reuse verified bytes, including when another device republishes the same text. */
+export function cachedRemoteBody(entry: LocalEntry | undefined, row: RemoteEntry): string | null {
+  return entry && !entry.dirty && !row.deleted_at && entry.sha256 && entry.sha256 === row.body_sha256
+    ? entry.body : null;
+}
 export function fromRemote(row: RemoteEntry, body: string | null, generation = 1): LocalEntry {
   return { userId: row.user_id, id: row.id, body, createdAt: row.created_at, updatedAt: row.updated_at,
     previewText: row.preview_text, wordCount: row.word_count, charCount: row.char_count, version: row.version,
@@ -16,12 +21,13 @@ export function createJournal(userId: string, owner: string) {
     catch (error) { try { tx.abort(); } catch {} await tx.done.catch(() => {}); throw error; }
   }
   return {
+    async get(id: string) { return (await openFreewriteDB()).get("entries", [userId, id]); },
     async entries() { return (await openFreewriteDB()).getAllFromIndex("entries", "account", userId); },
     async mutations() { return (await openFreewriteDB()).getAllFromIndex("outbox", "account", userId); },
     async cleanups() { return (await openFreewriteDB()).getAllFromIndex("cleanup", "account", userId); },
     async freeze(entry: LocalEntry): Promise<Mutation | null> {
       // Crypto is deliberately outside the IDB transaction; recheck the generation inside it.
-      const sha = entry.body === null ? null : await digest(entry.body);
+      const sha = !entry.dirty || entry.deleted || entry.body === null ? null : await digest(entry.body);
       const revisionId = crypto.randomUUID();
       return transaction(async tx => {
         const attempted = (await tx.objectStore("outbox").index("account").getAll(userId)).find(m => m.entryId === entry.id);
@@ -68,7 +74,7 @@ export function createJournal(userId: string, owner: string) {
       const entry = await tx.objectStore("entries").get([userId, row.id]);
       if (entry?.dirty || (expectedGeneration !== undefined && entry?.localGeneration !== expectedGeneration)) return false;
       if (entry && (entry.baseServerVersion ?? 0) > row.version) return false;
-      await tx.objectStore("entries").put(fromRemote(row, body, (entry?.localGeneration ?? 0) + 1)); return true;
+      await tx.objectStore("entries").put(fromRemote(row, body ?? cachedRemoteBody(entry, row), (entry?.localGeneration ?? 0) + 1)); return true;
     }); },
     recover(m: Mutation, canonical: RemoteEntry | null, body: string | null) { return transaction(async tx => {
       if (!await tx.objectStore("outbox").get([userId, m.mutationId])) return null;

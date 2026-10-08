@@ -42,6 +42,19 @@ function setup() {
   const engine = new EntrySync(journal, remote, events, Date.now, () => 0); engines.push(engine);
   return { journal, local, rows, bodies, receipts, remote, events, engine, select: (id: string) => { selected = id; } };
 }
+it("reconciles history without rereading every body for each remote row or hashing clean text", async () => {
+  const s = setup();
+  for (let i = 0; i < 20; i++) await s.local.create({ body: `entry ${i}` });
+  await s.engine.flush();
+  const scans = vi.spyOn(s.journal, "entries");
+  const hashes = vi.spyOn(crypto.subtle, "digest");
+  try {
+    await s.engine.flush(true);
+    expect(scans.mock.calls.length).toBeLessThanOrEqual(3);
+    expect(hashes).not.toHaveBeenCalled();
+    expect(await s.journal.hasPending()).toBe(false);
+  } finally { scans.mockRestore(); hashes.mockRestore(); }
+});
 it("freezes exact bytes and IDs across reload while later edits remain a successor", async () => {
   const { local, journal } = setup(); const entry = await local.create({ body: "one" });
   const first = (await journal.freeze(entry))!;
@@ -52,6 +65,60 @@ it("freezes exact bytes and IDs across reload while later edits remain a success
   expect(await local.get(entry.id)).toMatchObject({ body: "two", dirty: true, baseServerVersion: 1, localGeneration: 2 });
   const successor = (await journal.freeze((await local.get(entry.id))!))!;
   expect(successor.body).toBe("two"); expect(successor.request.expectedVersion).toBe(1); expect(successor.mutationId).not.toBe(first.mutationId);
+});
+it("coalesces overlapping reconciliation requests into one trailing pass", async () => {
+  const s = setup();
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let calls = 0;
+  s.remote.list = vi.fn(async () => { if (++calls === 1) await gate; return { rows: [] }; });
+  const first = s.engine.flush(true);
+  const overlapping = Array.from({ length: 10 }, () => s.engine.flush(true, true));
+  release();
+  await Promise.all([first, ...overlapping]);
+  expect(s.remote.list).toHaveBeenCalledTimes(2);
+});
+it("preserves cached identical bodies on new revisions without downloading them again", async () => {
+  const s = setup();
+  const a = await s.local.create({ body: "selected body" });
+  const b = await s.local.create({ body: "cached history" });
+  await s.engine.flush();
+  for (const id of [a.id, b.id]) {
+    const previous = s.rows.get(id)!;
+    s.rows.set(id, { ...previous, version: previous.version + 1, revision_id: crypto.randomUUID(), storage_path: `${id}/new-revision.md` });
+  }
+  s.select(a.id);
+  await s.engine.flush(true);
+  expect(s.remote.body).not.toHaveBeenCalled();
+  expect(await s.local.get(a.id)).toMatchObject({ body: "selected body", baseServerVersion: 2 });
+  expect(await s.local.get(b.id)).toMatchObject({ body: "cached history", baseServerVersion: 2 });
+});
+it("does not lose reconciliation requested while the previous pass finishes", async () => {
+  const s = setup();
+  let queued = false;
+  s.events.status = value => {
+    if (value === "Entries synced" && !queued) {
+      queued = true;
+      queueMicrotask(() => queueMicrotask(() => { void s.engine.flush(true); }));
+    }
+  };
+  await s.engine.flush(true);
+  expect(s.remote.list).toHaveBeenCalledTimes(2);
+});
+it("does not reuse cached text when its digest changes or the row is deleted", async () => {
+  const s = setup();
+  const a = await s.local.create({ body: "old body" });
+  const b = await s.local.create({ body: "deleted body" });
+  await s.engine.flush();
+  s.select(a.id);
+  const old = s.rows.get(a.id)!;
+  s.rows.set(a.id, { ...old, version: 2, storage_path: "changed", body_sha256: await digest("new body") });
+  s.bodies.set("changed", "new body");
+  s.rows.set(b.id, { ...s.rows.get(b.id)!, version: 2, deleted_at: new Date().toISOString() });
+  await s.engine.flush(true);
+  expect(s.remote.body).toHaveBeenCalledTimes(1);
+  expect(await s.local.get(a.id)).toMatchObject({ body: "new body" });
+  expect(await s.local.get(b.id)).toMatchObject({ body: null, deleted: true });
 });
 it("does not advance a dirty base version during focus reconciliation", async () => {
   const s = setup(); const e = await s.local.create({ body: "base" }); await s.engine.flush();
@@ -118,7 +185,7 @@ it("paged metadata includes tied timestamps, keeps uncached bodies null and down
 });
 it("a clean download cannot overwrite an edit made while it was pending", async () => {
   const s = setup(); const e = await s.local.create({ body: "base" }); await s.engine.flush();
-  const r = s.rows.get(e.id)!; s.rows.set(e.id, { ...r, version: 2, storage_path: "new" });
+  const r = s.rows.get(e.id)!; s.rows.set(e.id, { ...r, version: 2, storage_path: "new", body_sha256: await digest("new remote body") });
   s.select(e.id); s.remote.body = async () => { await s.local.update(e.id, "typed during fetch", 1); throw Error("download interrupted"); };
   s.remote.publish = async () => { throw Error("network down"); };
   await expect(s.engine.flush(true)).rejects.toThrow();
