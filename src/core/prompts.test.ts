@@ -33,6 +33,17 @@ describe("isChatEligible", () => {
 });
 
 describe("buildChatDispatch", () => {
+  it("encodes query delimiters and malformed Unicode without altering clipboard text", () => {
+    const text = "one & two? #three + café 🌍 \uD800 end";
+    for (const destination of ["chatgpt", "claude"] as const) {
+      const dispatch = buildChatDispatch(destination, text);
+      expect(dispatch.body.endsWith(text)).toBe(true);
+      const url = new URL(dispatch.url);
+      expect([...url.searchParams]).toHaveLength(1);
+      expect([...url.searchParams.values()][0]).toBe(dispatch.body.replace("\uD800", "\uFFFD"));
+      expect(url.hash).toBe("");
+    }
+  });
   it("builds a chatgpt url with the prompt and trimmed entry", () => {
     const dispatch = buildChatDispatch("chatgpt", "  hello world  ");
     expect(dispatch.body).toBe(CHATGPT_PROMPT + "\n\nhello world");
