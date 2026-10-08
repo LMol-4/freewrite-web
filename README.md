@@ -17,7 +17,7 @@ switch themes, or go fullscreen. Once prepared, the app can reopen offline too.
 
 Use Node 22, pnpm 11.10.0, and a local Supabase stack (Docker required).
 Copy [.env.example](.env.example) to `.env.local` and fill in your local configuration.
-For hosting, apply the Supabase migrations and set the same environment variables.
+Production releases run through GitHub Actions; see [deployment setup](docs/deployment.md).
 
 ```sh
 pnpm install --frozen-lockfile
