@@ -25,6 +25,12 @@ deployment branches to `main`. Add these environment secrets:
 | `SUPABASE_ACCESS_TOKEN` | Create at [Supabase account tokens](https://supabase.com/dashboard/account/tokens), with access to the project |
 | `SUPABASE_DB_PASSWORD` | The Supabase project's database password (not an API key) |
 
+For Vercel, choose the **Luke's projects** team scope, not your personal account
+or a project-only token. The CLI needs access to team information as well as project
+settings. If access fails, replace GitHub's `VERCEL_TOKEN`, then run **Actions →
+Release access check → Run workflow → main**. This read-only workflow takes no
+deployment action and also runs alongside CI tests on `main`.
+
 Scope the Supabase token to this project. Grant **Project Settings**, **API Keys**,
 and **API Key Secrets** Read permissions for `supabase link`, plus **Database Read**
 for the schema verification query. Also grant **Connection Pooling → Read**:
