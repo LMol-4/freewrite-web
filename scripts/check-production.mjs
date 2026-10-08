@@ -1,5 +1,5 @@
 import { pathToFileURL } from 'node:url';
-import { createClient } from '@supabase/supabase-js';
+import { fetchWithRetry } from './release-http.mjs';
 
 export function validateProduction(env, projectRef) {
   for (const name of ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY', 'APP_ORIGIN', 'SUPABASE_SERVICE_ROLE_KEY', 'MCP_KEY_ENCRYPTION_SECRET']) {
@@ -29,12 +29,11 @@ export async function verifyDatabase(env, request = fetch, checkSchema = true) {
   if (!/^[a-z0-9]+$/.test(ref ?? '') || !env.SUPABASE_ACCESS_TOKEN) throw Error('Missing database verification credentials');
   try {
     // Reuse the migration account token; runtime secrets stay inside Vercel.
-    const response = await request(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
+    const response = await fetchWithRetry(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.SUPABASE_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: checkSchema ? "select to_regclass('public.mcp_keys') is not null and to_regprocedure('public.authenticate_mcp_key(text)') is not null and to_regprocedure('public.replace_mcp_key(uuid,uuid,uuid,text,text)') is not null as ready" : 'select true as ready', read_only: true }),
-      signal: AbortSignal.timeout(30000),
-    });
+    }, request);
     if (!response.ok || (await response.json())[0]?.ready !== true) throw Error();
   } catch {
     throw Error('MCP database verification failed; check migration, API access, and token permissions');
@@ -49,6 +48,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       await verifyDatabase(process.env, fetch, false);
     } else if (process.argv.includes('--production')) {
       validateProduction(process.env, process.env.SUPABASE_PROJECT_REF);
+      const { createClient } = await import('@supabase/supabase-js');
       const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
       const { error } = await client.from('entries').select('id', { head: true }).limit(0);
       if (error) throw Error('Production Supabase credential verification failed');

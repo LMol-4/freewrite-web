@@ -16,6 +16,8 @@ jobs:
     uses: ./.github/workflows/release-access.yml
     secrets: inherit
   release-tools:
+    needs: [production-access]
+    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.ref != 'refs/heads/main' || needs.production-access.result == 'success') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -43,6 +45,8 @@ jobs:
           supabase link --help
           supabase db push --help
   checks:
+    needs: [production-access]
+    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.ref != 'refs/heads/main' || needs.production-access.result == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -61,6 +65,8 @@ jobs:
       - name: Unit and transaction tests
         run: pnpm exec vitest run
   browsers:
+    needs: [production-access]
+    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.ref != 'refs/heads/main' || needs.production-access.result == 'success') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:

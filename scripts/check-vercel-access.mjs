@@ -1,4 +1,5 @@
 import { pathToFileURL } from 'node:url';
+import { fetchWithRetry } from './release-http.mjs';
 
 export async function checkVercelAccess(env, request = fetch) {
   for (const name of ['VERCEL_TOKEN', 'VERCEL_ORG_ID', 'VERCEL_PROJECT_ID']) {
@@ -10,10 +11,9 @@ export async function checkVercelAccess(env, request = fetch) {
   async function get(path, label) {
     let response;
     try {
-      response = await request(`https://api.vercel.com${path}`, {
+      response = await fetchWithRetry(`https://api.vercel.com${path}`, {
         headers: { Authorization: `Bearer ${env.VERCEL_TOKEN}` },
-        signal: AbortSignal.timeout(30000),
-      });
+      }, request);
     } catch { throw Error(`Vercel ${label} check could not connect. Retry the access check.`); }
     if (!response.ok) throw Error(`Vercel ${label} access failed (HTTP ${response.status}). Check the IDs and replace VERCEL_TOKEN with a token scoped to the owning team, not a personal or project-only token.`);
     try { return await response.json(); }

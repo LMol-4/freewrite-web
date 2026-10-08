@@ -1,10 +1,15 @@
 # Production deployment
 
-CI owns production releases: all checks and both browser suites → staged Vercel
+CI owns production releases: production API access → all checks and both browser suites → staged Vercel
 production build → pending Supabase migrations → MCP schema check → promotion.
 Pull requests only use disposable databases. Releases run serially and are not
 automatically cancelled by newer pushes. A failed step stops the release.
-CLI installation is tested in a fast parallel CI job before release. Once tests
+On `main`, API access must pass before any test or tool-installation job starts.
+PRs and manual runs on other branches test normally without production secrets.
+The access check uses only Node: no application dependencies, CLI installation,
+database-password login, migration dry-run, or schema changes. API reads retry
+temporary failures at most three times; authentication failures stop immediately.
+CLI installation is tested in a parallel CI job after this gate. Once tests
 pass, database linking, a migration dry run, and verification-API permissions are
 checked before the Vercel build. These checks do not apply migrations.
 
@@ -29,7 +34,8 @@ For Vercel, choose the **Luke's projects** team scope, not your personal account
 or a project-only token. The CLI needs access to team information as well as project
 settings. If access fails, replace GitHub's `VERCEL_TOKEN`, then run **Actions →
 Release access check → Run workflow → main**. This read-only workflow takes no
-deployment action and also runs alongside CI tests on `main`.
+deployment action and also runs before CI tests on `main`. It checks both Vercel
+and Supabase API access; it does not validate the database password.
 
 Scope the Supabase token to this project. Grant **Project Settings**, **API Keys**,
 and **API Key Secrets** Read permissions for `supabase link`, plus **Database Read**
@@ -93,6 +99,12 @@ After correcting a setting, use **Actions → CI → Run workflow → main** to 
 whole pipeline again. Outdated commit reruns are rejected. Because the existing
 app stays live during migration (and if deployment fails), write backward-compatible
 migrations; remove old columns only after deployed code no longer uses them.
+
+For a credential correction after only the release job failed, **Re-run failed
+jobs** can reuse successful test jobs from that same run and commit. If code has
+changed or the run targets an older commit, run the complete workflow on current
+`main` instead. A failed API preflight leaves tests unrun; they must pass before
+any release can proceed.
 
 GitHub may replace an older queued run with the newest one; the running release
 is not cancelled. The newest checkout contains all committed migrations, so
