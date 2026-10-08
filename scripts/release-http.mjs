@@ -1,7 +1,7 @@
 import { setTimeout } from 'node:timers/promises';
 
 // Only for read-only access checks, never deploys, promotions or migrations.
-export async function fetchWithRetry(url, options, request = fetch, wait = setTimeout) {
+export async function fetchWithRetry(url, options, request = fetch, wait = milliseconds => setTimeout(milliseconds)) {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const response = await request(url, { ...options, signal: AbortSignal.timeout(10000) });
