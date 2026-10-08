@@ -16,7 +16,7 @@ test("loaded app retains offline writing, blocks safe sign-out and reconnects", 
   await expect(page.getByText("Synced", { exact: true })).toBeAttached();
   await context.setOffline(true);
   await page.getByRole("textbox", { name: "Freewrite entry" }).fill("written with no connection");
-  await expect(page.getByText("Saved on this device", { exact: true })).toBeAttached();
+  await expect(page.locator('.sync-status')).toHaveAttribute('data-local', 'Saved on this device');
   await page.getByRole("button", { name: "Sign out", exact: true }).click(); await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Freewrite entry" })).toHaveValue("written with no connection");
@@ -35,7 +35,7 @@ test("dirty focus preserves losing text including typing during conflict resolut
     let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; }); let attempted!: () => void; const request = new Promise<void>(resolve => { attempted = resolve; });
     await other.route("**/rest/v1/rpc/publish_entry", async route => { attempted(); await gate; await route.continue(); });
     await second.setOffline(false); await other.evaluate(() => window.dispatchEvent(new Event("focus"))); await request;
-    await otherEditor.fill("latest complete losing text typed during request"); await expect(other.getByText("Saved on this device", { exact: true })).toBeAttached(); release();
+    await otherEditor.fill("latest complete losing text typed during request"); await expect(other.locator('.sync-status')).toHaveAttribute('data-local', 'Saved on this device'); release();
     await expect(other.getByText("This entry changed on another device. Your version was saved separately.", { exact: false })).toBeVisible();
     await expect(otherEditor).toHaveValue("winning complete body");
     const client = localClients().user(); await client.auth.signInWithPassword(account);

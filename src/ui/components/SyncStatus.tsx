@@ -23,6 +23,13 @@ export function SyncStatus(props: Props) {
   const synced = !problem && props.local === "Saved on this device" && props.remote === "Entries synced" && props.preferences === "Preferences synced";
   const syncing = !problem && (props.remote === "Syncing…" || props.local === "Saving on this device");
   const summary = problem ? "Sync needs attention" : synced ? "Synced" : syncing ? "Syncing" : "Changes waiting to sync";
+  const detail = props.localError ? props.local
+    : props.preferenceError ? props.preferenceError
+    : problem ? props.remote
+    : synced ? "Synced"
+    : syncing ? "Saving…"
+    : props.local !== "Saved on this device" ? (props.local || props.remote)
+    : "Saved on this device · sync pending";
 
   useEffect(() => {
     if (!open) return;
@@ -35,7 +42,7 @@ export function SyncStatus(props: Props) {
     return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape, true); };
   }, [open]);
 
-  return <div ref={root} className="sync-status" data-state={problem ? "attention" : synced ? "synced" : syncing ? "syncing" : "pending"}>
+  return <div ref={root} className="sync-status" data-local={props.local} data-preferences={props.preferences} data-readiness={props.readiness} data-state={problem ? "attention" : synced ? "synced" : syncing ? "syncing" : "pending"}>
     <button ref={button} type="button" className="sync-indicator" aria-label="Sync status" aria-describedby={`${id}-summary`} title={summary}
       aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)}>
       <svg className={syncing ? "sync-spinning" : undefined} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -47,11 +54,7 @@ export function SyncStatus(props: Props) {
     {/* Keep save feedback available to assistive technology without occupying
         the writing canvas. Actions enter the tab order only when expanded. */}
     <div id={id} className={open ? "sync-panel" : "visually-hidden"}>
-      {props.local && <p role="status">{props.local}</p>}
-      <p role="status">{synced ? "Synced" : props.remote}</p>
-      <p role="status">{props.preferenceError ? "Preferences pending" : props.preferences}</p>
-      {props.preferenceError && <p role="status">{props.preferenceError}</p>}
-      <p role="status">{props.readiness}</p>
+      <p role="status" title={props.readiness}>{detail}</p>
       {open && <div className="sync-actions">
         <button type="button" disabled={props.disabled} onClick={props.onSync}>Sync now</button>
         {props.preferenceError && <button type="button" disabled={props.disabled} onClick={props.onRetryPreferences}>Retry preferences</button>}

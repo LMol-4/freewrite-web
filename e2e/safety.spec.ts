@@ -2,7 +2,7 @@ import { test, expect, login, localClients } from "./fixtures";
 test("cancel and failed sign-out retain writing; explicit discard clears only this account", async ({ page, account }) => {
   await page.route("**/rest/v1/rpc/publish_entry", route => route.abort());
   const editor = page.getByRole("textbox", { name: "Freewrite entry" });
-  await editor.fill("Unsynced writing must survive"); await expect(page.getByText("Saved on this device", { exact: true })).toBeAttached();
+  await editor.fill("Unsynced writing must survive"); await expect(page.locator('.sync-status')).toHaveAttribute('data-local', 'Saved on this device');
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible(); await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(editor).toHaveValue("Unsynced writing must survive");
@@ -21,7 +21,7 @@ test("cancel and failed sign-out retain writing; explicit discard clears only th
 test("one tab writes, another stays read-only and is locked by sign-out", async ({ page, context }) => {
   await page.route("**/rest/v1/rpc/publish_entry", route => route.abort());
   const editor = page.getByRole("textbox", { name: "Freewrite entry" }); await editor.fill("two-tab secret");
-  await expect(page.getByText("Saved on this device", { exact: true })).toBeAttached();
+  await expect(page.locator('.sync-status')).toHaveAttribute('data-local', 'Saved on this device');
   const second = await context.newPage(); await second.goto("/");
   await expect(second.getByRole("textbox", { name: "Freewrite entry" })).toHaveAttribute("readonly", "");
   await expect(second.getByText(/Read-only: another tab/)).toBeVisible();
@@ -31,10 +31,10 @@ test("one tab writes, another stays read-only and is locked by sign-out", async 
   await second.close();
 });
 test("preferences propagate through the server into an independent browser context", async ({ page, browser, account }) => {
-  await page.getByRole("button", { name: "Dark Mode" }).click(); await expect(page.getByText("Preferences synced", { exact: true })).toBeAttached();
+  await page.getByRole("button", { name: "Dark Mode" }).click(); await expect(page.locator('.sync-status')).toHaveAttribute('data-preferences', 'Preferences synced');
   const secondContext = await browser.newContext(); const second = await secondContext.newPage();
   try { await login(second, account); await expect(second.locator("html")).toHaveAttribute("data-theme", "dark");
-    await second.getByRole("button", { name: "Serif", exact: true }).click(); await expect(second.getByText("Preferences synced", { exact: true })).toBeAttached();
+    await second.getByRole("button", { name: "Serif", exact: true }).click(); await expect(second.locator('.sync-status')).toHaveAttribute('data-preferences', 'Preferences synced');
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
     await expect(page.getByRole("button", { name: "Serif", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -42,7 +42,7 @@ test("preferences propagate through the server into an independent browser conte
 });
 test("account B cannot see A's local writing after an external session change or Back", async ({ page, createAccount }) => {
   await page.getByRole("textbox", { name: "Freewrite entry" }).fill("private A retained");
-  await expect(page.getByText("Saved on this device", { exact: true })).toBeAttached();
+  await expect(page.locator('.sync-status')).toHaveAttribute('data-local', 'Saved on this device');
   const b = await createAccount(); await login(page, b);
   await expect(page.getByRole("textbox", { name: "Freewrite entry" })).toHaveValue("\n\n");
   await page.goBack();
@@ -75,7 +75,7 @@ test("RLS and Storage reject anonymous and cross-account access", async ({ accou
 
 test("a missing browser session locks the editor without deleting its partition", async ({ page, context, account }) => {
   const editor = page.getByRole("textbox", { name: "Freewrite entry" });
-  await editor.fill("retained through session expiry"); await expect(page.getByText("Saved on this device", { exact: true })).toBeAttached();
+  await editor.fill("retained through session expiry"); await expect(page.locator('.sync-status')).toHaveAttribute('data-local', 'Saved on this device');
   await context.clearCookies(); await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(editor).toBeHidden(); await expect(page.getByText(/Your session changed/)).toBeVisible();
   await login(page, account); await expect(editor).toHaveValue("retained through session expiry");

@@ -15,7 +15,7 @@ test.describe("editor", () => {
     await editor.pressSequentially("what a nice place to write things down");
     await expect(placeholder).toBeHidden();
 
-    await expect(page.getByRole("status", { name: "" }).filter({ hasText: /^Saved on this device$/ })).toHaveText("Saved on this device");
+    await expect(page.locator('.sync-status')).toHaveAttribute('data-local', 'Saved on this device');
     await page.reload();
 
     await expect(page.locator("textarea.editor")).toHaveValue(/what a nice place to write things down/);
@@ -34,7 +34,7 @@ test.describe("fonts and size", () => {
 
     await expect(editor).toHaveCSS("font-size", "24px");
 
-    await expect(page.getByText("Preferences synced", { exact: true })).toBeAttached();
+    await expect(page.locator('.sync-status')).toHaveAttribute('data-preferences', 'Preferences synced');
     await page.reload();
 
     await expect(page.locator("textarea.editor")).toHaveCSS("font-size", "24px");

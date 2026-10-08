@@ -5,6 +5,10 @@ test("sync status is quiet, expands for errors and never claims synced on failur
   await expect(page.locator('.sync-status')).toHaveAttribute('data-state', 'synced');
   await expect(indicator).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('button', { name: 'Sync now', exact: true })).toHaveCount(0);
+  await indicator.click();
+  await expect(page.locator('.sync-panel [role="status"]')).toHaveCount(1);
+  await expect(page.locator('.sync-panel [role="status"]')).toHaveText('Synced');
+  await indicator.click();
   await page.route('**/rest/v1/entry_receipts*', route => route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ message: "Could not find the table 'public.entry_receipts' in the schema cache" }) }));
   await page.getByRole('textbox', { name: 'Freewrite entry' }).fill('Retain this local writing through a backend failure.');
   await syncNow(page);
