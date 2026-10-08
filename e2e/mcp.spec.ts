@@ -4,7 +4,7 @@ import type { APIRequestContext } from "@playwright/test";
 
 const origin = "http://127.0.0.1:3000";
 async function key(request: APIRequestContext) {
-  const generated = await request.post("/api/mcp-key", { headers: { Origin: origin }, data: { action: "replace", generation: null } });
+  const generated = await request.post("/api/mcp-key", { headers: { Origin: origin }, data: { action: "ensure" } });
   expect(generated.status()).toBe(200);
   const revealed = await request.post("/api/mcp-key", { headers: { Origin: origin }, data: { action: "reveal" } });
   return (await revealed.json()).credential as { generation: string; key: string };
@@ -27,7 +27,8 @@ async function seed(account: Account, body: string, extra = {}) {
 test("connector reveals the same key across visits and rotates it", async ({ page }) => {
   await page.getByRole("button", { name: "MCP connector", exact: true }).click();
   await expect(page.getByRole("heading", { name: "MCP connector", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Generate API key" }).click();
+  await expect(page.getByRole("button", { name: "Rotate key", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Generate API key" })).toHaveCount(0);
   const field = page.getByRole("textbox", { name: "API key", exact: true });
   await page.getByRole("button", { name: "Reveal API key" }).click();
   await expect(field).toHaveValue(/^fw_/);
@@ -93,14 +94,35 @@ test("MCP enforces ownership, deletion, readonly credentials, and full-note cont
   expect(note.data).toMatchObject({ deleted_at: null, version: 1 });
 });
 
-test("key rotation is atomic and management rejects foreign origins", async ({ page }) => {
+test("key initialization and rotation are atomic and management rejects foreign origins", async ({ page }) => {
+  const ensure = () => page.request.post("/api/mcp-key", { headers: { Origin: origin }, data: { action: "ensure" } });
+  const initialized = await Promise.all([ensure(), ensure()]);
+  const metadata = await Promise.all(initialized.map(async response => {
+    expect(response.status()).toBe(200);
+    return (await response.json()).credential;
+  }));
+  expect(metadata[0].generation).toBe(metadata[1].generation);
+  expect(metadata[0].key).toBeUndefined();
   const credential = await key(page.request);
+  expect(credential.generation).toBe(metadata[0].generation);
   const rotate = () => page.request.post("/api/mcp-key", { headers: { Origin: origin }, data: { action: "replace", generation: credential.generation } });
   const responses = await Promise.all([rotate(), rotate()]);
   expect(responses.map(r => r.status()).sort()).toEqual([200, 409]);
   expect((await rpc(page.request, credential.key, "list_notes")).status()).toBe(401);
   const blocked = await page.request.post("/api/mcp-key", { headers: { Origin: "https://evil.test" }, data: { action: "reveal" } });
   expect(blocked.status()).toBe(403);
+});
+
+test("connector can retry a failed automatic key load", async ({ page }) => {
+  await page.route("**/api/mcp-key", async route => {
+    await route.fulfill({ status: 503, json: { error: "The MCP connector needs a database update. Please contact the site owner." } });
+  });
+  await page.goto("/connect");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("needs a database update");
+  await page.unroute("**/api/mcp-key");
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Rotate key", exact: true })).toBeEnabled();
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
 
 test("public instructions use configured origin and never expose credentials", async ({ page, browser }) => {

@@ -1,8 +1,9 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { McpSetupError } from "./errors";
 
 function encryptionKey() {
   const hex = process.env.MCP_KEY_ENCRYPTION_SECRET;
-  if (!hex || !/^[a-f0-9]{64}$/i.test(hex)) throw Error("MCP_KEY_ENCRYPTION_SECRET must be 32 random bytes in hex");
+  if (!hex || !/^[a-f0-9]{64}$/i.test(hex)) throw new McpSetupError("The MCP connector is not configured yet. Please contact the site owner.");
   return Buffer.from(hex, "hex");
 }
 export function generateKey() { return "fw_" + randomBytes(32).toString("base64url"); }

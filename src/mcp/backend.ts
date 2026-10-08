@@ -3,12 +3,20 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../lib/supabase/database.types";
 import { decryptKey, encryptKey, generateKey, keyHash } from "./crypto";
 import { randomUUID } from "node:crypto";
+import { McpSetupError } from "./errors";
+
+function databaseError(error: { code?: string }) {
+  if (["42P01", "42883", "PGRST202", "PGRST205"].includes(error.code ?? "")) {
+    throw new McpSetupError("The MCP connector needs a database update. Please contact the site owner.");
+  }
+  throw Error("MCP database unavailable");
+}
 
 // Never import this module in a client component. All reads must be scoped to
 // the identity established by the browser session or the verified MCP key.
 export function backend() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!key) throw Error("MCP server is not configured");
+  if (!key) throw new McpSetupError("The MCP connector is not configured yet. Please contact the site owner.");
   return createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { fetch: (url, options) => fetch(url, { ...options, cache: "no-store" }) },
@@ -16,9 +24,19 @@ export function backend() {
 }
 export async function readKey(userId: string, reveal = false) {
   const { data, error } = await backend().from("mcp_keys").select("generation,ciphertext,created_at,last_used_at").eq("user_id", userId).maybeSingle();
-  if (error) throw Error("Key unavailable");
+  if (error) databaseError(error);
   return data ? { generation: data.generation, createdAt: data.created_at, lastUsedAt: data.last_used_at,
     ...(reveal ? { key: decryptKey(data.ciphertext, userId) } : {}) } : null;
+}
+export async function ensureKey(userId: string) {
+  const existing = await readKey(userId);
+  if (existing) return existing;
+  // A concurrent opener may win the compare-and-swap. Always return the winner;
+  // opening this page must never rotate an existing credential.
+  await replaceKey(userId, null);
+  const credential = await readKey(userId);
+  if (!credential) throw Error("Key unavailable");
+  return credential;
 }
 export async function replaceKey(userId: string, expected: string | null) {
   const key = generateKey();
@@ -27,7 +45,7 @@ export async function replaceKey(userId: string, expected: string | null) {
     p_user_id: userId, p_expected: expected!, p_generation: randomUUID(),
     p_hash: keyHash(key), p_ciphertext: encryptKey(key, userId),
   });
-  if (error) throw Error("Key unavailable");
+  if (error) databaseError(error);
   return data;
 }
 export async function authenticateKey(header: string | null) {
