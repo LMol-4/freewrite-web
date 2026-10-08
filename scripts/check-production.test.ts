@@ -11,7 +11,7 @@ const env = {
 };
 describe('production release preflight', () => {
   it('requires production settings even without Vercel system variables', () => {
-    const result = spawnSync(process.execPath, ['scripts/check-production.mjs', '--production'], { env: {}, encoding: 'utf8' });
+    const result = spawnSync(process.execPath, ['scripts/check-production.mjs', '--production'], { env: { NODE_ENV: 'test' }, encoding: 'utf8' });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Missing production setting');
   });
