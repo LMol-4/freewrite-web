@@ -3,5 +3,5 @@
   "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm build",
-  "ignoreCommand": "node scripts/ignore-preview.mjs"
+  "git": { "deploymentEnabled": false }
 }
