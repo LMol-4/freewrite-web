@@ -4,6 +4,9 @@ CI owns production releases: all checks and both browser suites → staged Verce
 production build → pending Supabase migrations → MCP schema check → promotion.
 Pull requests only use disposable databases. Releases run serially and are not
 automatically cancelled by newer pushes. A failed step stops the release.
+CLI installation is tested in a fast parallel CI job before release. Once tests
+pass, database linking, a migration dry run, and verification-API permissions are
+checked before the Vercel build. These checks do not apply migrations.
 
 Vercel builds once using its production settings and build cache. `--skip-domain`
 keeps the existing site on the production domain until `vercel promote` runs.
