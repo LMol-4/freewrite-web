@@ -16,6 +16,12 @@ Copyright (c) 2010-2011 by tyPoland Lukasz Dziedzic with Reserved Font Name "Lat
 
 Version 1.104; Western+Polish opensource
 
+## Lato-Black.woff2
+
+Added 2026-10-08 for the public-page heading, weight 900 (Latin subset).
+Source: https://fonts.gstatic.com/s/lato/v25/S6u9w4BMUTPHh50XSwiPGQ.woff2
+Redistributed under the adjacent `lato-OFL.txt` (SIL OFL 1.1).
+
 ## LibreBaskerville-Regular.woff2
 
 Copyright 2012 The Libre Baskerville Project Authors (https://github.com/impallari/Libre-Baskerville)

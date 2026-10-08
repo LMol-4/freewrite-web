@@ -12,7 +12,10 @@ import localFont from "next/font/local";
  */
 
 export const lato = localFont({
-  src: "./Lato-Regular.woff2",
+  src: [
+    { path: "./Lato-Regular.woff2", weight: "400", style: "normal" },
+    { path: "./Lato-Black.woff2", weight: "900", style: "normal" },
+  ],
   variable: "--font-lato",
   display: "swap",
   preload: true,

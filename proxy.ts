@@ -2,9 +2,8 @@ import type { NextProxy } from "next/server";
 
 import { updateSession } from "@/src/lib/supabase/session";
 
-// See §8: this refreshes the Supabase session on every matched request and
-// redirects unauthenticated users away from `/`. RLS is the real boundary
-// (§6) — this is UX, not security.
+// Refresh the session; the home page chooses the landing page or writer.
+// RLS remains the data security boundary.
 export const proxy: NextProxy = (request) => updateSession(request);
 
 export const config = {

@@ -16,14 +16,12 @@ export async function updateSession(request: NextRequest) {
       },
     },
   });
-  const { data, error } = await supabase.auth.getUser();
-  const unavailable = error?.name === "AuthRetryableFetchError" || (error?.status ?? 0) >= 500;
-  if (!data.user && !unavailable && request.nextUrl.pathname === "/") {
-    const url = request.nextUrl.clone(); url.pathname = "/sign-in";
-    const redirect = NextResponse.redirect(url);
-    response.cookies.getAll().forEach(cookie => redirect.cookies.set(cookie));
-    response.headers.forEach((value, key) => { if (["cache-control", "expires", "pragma"].includes(key)) redirect.headers.set(key, value); });
-    response = redirect;
+  const { data } = await supabase.auth.getUser();
+  if (data.user && ["/sign-in", "/sign-up"].includes(request.nextUrl.pathname)) {
+    const url = request.nextUrl.clone(); url.pathname = "/"; url.search = "";
+    const redirected = NextResponse.redirect(url);
+    response.cookies.getAll().forEach(cookie => redirected.cookies.set(cookie));
+    response = redirected;
   }
   response.headers.set("Cache-Control", "private, no-cache, no-store, must-revalidate, max-age=0");
   response.headers.set("Pragma", "no-cache"); response.headers.set("Expires", "0");

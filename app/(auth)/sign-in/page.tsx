@@ -20,15 +20,15 @@ export default function SignInPage() {
           Password
           <input type="password" name="password" autoComplete="current-password" required />
         </label>
-        {error && <p className="auth-error">{error}</p>}
+        {error && <p role="alert" className="auth-error">{error}</p>}
         <button type="submit" disabled={pending}>
           {pending ? "Signing in…" : "Sign in"}
         </button>
         <p className="auth-links">
-          <Link href="/forgot-password">Forgot password?</Link>
+          <Link scroll={false} href="/forgot-password">Forgot password?</Link>
         </p>
         <p className="auth-links">
-          No account? <Link href="/sign-up">Sign up</Link>
+          No account? <Link scroll={false} href="/sign-up">Sign up</Link>
         </p>
       </form>
     </div>
