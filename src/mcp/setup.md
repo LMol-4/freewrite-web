@@ -11,7 +11,7 @@ There is no OAuth flow. ChatGPT web setup is not supported by this integration.
 - Header: Authorization: Bearer <FREEWRITE_API_KEY>
 - Manage your key: {{APP_ORIGIN}}/connect
 
-Generate a key on the connector page. You can reveal or copy the same key later.
+Opening the connector page automatically creates your key if needed. You can reveal or copy the same key later.
 Rotating it immediately invalidates the old key for subsequent requests.
 Update every client using that key after rotation.
 
