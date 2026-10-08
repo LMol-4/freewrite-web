@@ -30,8 +30,6 @@ pnpm lint
 pnpm build
 ```
 
-See [OPERATIONS.md](OPERATIONS.md) for backend setup and release checks.
-
 ## Future implementations
 
 - MCP server access.
