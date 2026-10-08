@@ -420,7 +420,7 @@ dialog button { margin: 12px 12px 0 0; padding: 10px; }
 .chat-dialog label { display: block; }
 .chat-dialog textarea { display: block; width: 100%; height: 12rem; margin-top: 8px; padding: 8px; background: var(--bg-color); color: var(--text-color); border: 1px solid var(--popup-border); }
 
-:root { --keyboard-offset: 0px; --bottom-safe: env(safe-area-inset-bottom); --visible-height: 100dvh; }
+:root { --keyboard-offset: 0px; --bottom-safe: env(safe-area-inset-bottom); --visible-height: 100dvh; --visible-bottom: 100dvh; }
 .control-separator:has(+ .fullscreen-unavailable) { display: none; }
 dialog:not(.sheet) { margin: auto; bottom: var(--keyboard-offset); max-height: calc(var(--visible-height) - 32px); overflow-y: auto; }
 html, body { overscroll-behavior: none; }
@@ -434,9 +434,10 @@ html, body { overscroll-behavior: none; }
 .segments { display: flex; flex-wrap: wrap; gap: 4px; }
 .segments button { border: 1px solid var(--popup-border); border-radius: 4px; }
 .segments [aria-pressed="true"] { background: var(--entry-selected-bg); font-weight: bold; }
-.mobile-bar, .reveal-controls { position: fixed; bottom: var(--keyboard-offset); padding-bottom: var(--bottom-safe); height: calc(44px + var(--bottom-safe)); z-index: 800; }
+.mobile-bar, .reveal-controls { position: fixed; top: calc(var(--visible-bottom) - 44px - var(--bottom-safe)); padding-bottom: var(--bottom-safe); height: calc(44px + var(--bottom-safe)); z-index: 800; }
 .mobile-bar { left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; transition: opacity .2s; }
 .mobile-bar button { width: 64px; height: 44px; opacity: .4; }
+.mobile-history-icon { display: block; margin: 0 auto; }
 .mobile-bar button:active, .mobile-bar button:focus-visible { opacity: 1; }
 .timer-controls { display: flex; align-items: center; gap: 4px; }
 .timer-controls > .control-item:first-child { min-width: 3.2em; font-variant-numeric: tabular-nums; justify-content: center; }
