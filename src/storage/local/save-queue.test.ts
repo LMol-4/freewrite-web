@@ -1,5 +1,25 @@
 import { expect, it } from "vitest";
 import { LocalSaveQueue } from "./save-queue";
+it("starts input queued during completion and flush waits for that successor", async () => {
+  const writes: string[] = [];
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const queue = new LocalSaveQueue(async body => {
+    writes.push(body);
+    if (body === "second") await gate;
+  }, state => {
+    if (state === "saved" && writes.length === 1) queueMicrotask(() => queue.request("second"));
+  });
+  queue.request("first");
+  let flushed = false;
+  const flushing = queue.flush().then(() => { flushed = true; });
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(writes).toEqual(["first", "second"]);
+  expect(flushed).toBe(false);
+  release();
+  await flushing;
+  expect(queue.unsaved).toBe(false);
+});
 it("starts immediately, serializes continuous input and only acknowledges latest commit", async () => {
   const writes: string[] = []; const status: string[] = []; const releases: (() => void)[] = [];
   const queue = new LocalSaveQueue(async body => { writes.push(body); await new Promise<void>(r => releases.push(r)); }, state => status.push(state));
