@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateProduction } from './check-production.mjs';
+import { validateProduction, verifyDatabase } from './check-production.mjs';
 
 const env = {
   NEXT_PUBLIC_SUPABASE_URL: 'https://exampleproject.supabase.co',
@@ -23,5 +23,18 @@ describe('production release preflight', () => {
   });
   it.each(['http://localhost:3000', 'https://writing.example/path', 'https://writing.example/'])('rejects invalid origin %s', origin => {
     expect(() => validateProduction({ ...env, APP_ORIGIN: origin }, 'exampleproject')).toThrow('canonical HTTPS');
+  });
+});
+
+describe('post-migration gate', () => {
+  const credentials = { SUPABASE_PROJECT_REF: 'exampleproject', SUPABASE_ACCESS_TOKEN: 'test-token' };
+  it('accepts a complete schema', async () => {
+    await expect(verifyDatabase(credentials, async () => Response.json([{ ready: true }]))).resolves.toBeUndefined();
+  });
+  it.each([{ result: [] }, { result: [{ ready: false }] }, { result: [{ ready: 'true' }] }])('rejects incomplete schema: $result', async ({ result }) => {
+    await expect(verifyDatabase(credentials, async () => Response.json(result))).rejects.toThrow('verification failed');
+  });
+  it('rejects provider errors without exposing their response', async () => {
+    await expect(verifyDatabase(credentials, async () => new Response('private diagnostic', { status: 403 }))).rejects.toThrow('verification failed; check migration');
   });
 });

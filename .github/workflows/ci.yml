@@ -130,17 +130,20 @@ jobs:
         with:
           version: 2.75.0
       - run: pnpm install --frozen-lockfile
-      - name: Pull production configuration
-        run: pnpm dlx vercel@50.0.1 pull --yes --environment=production --token="$VERCEL_TOKEN"
-      - name: Validate production configuration
-        run: node scripts/check-production.mjs
-      - name: Build production app
-        run: pnpm dlx vercel@50.0.1 build --prod --token="$VERCEL_TOKEN"
+      - name: Build staged production deployment on Vercel
+        id: stage
+        shell: bash
+        run: |
+          deployment_url=$(pnpm dlx vercel@50.0.1 deploy --prod --skip-domain --yes --build-env SUPABASE_PROJECT_REF="$SUPABASE_PROJECT_REF" --token="$VERCEL_TOKEN")
+          [[ "$deployment_url" =~ ^https://[a-zA-Z0-9.-]+\.vercel\.app$ ]] || { echo 'Invalid staged deployment URL'; exit 1; }
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
       - name: Link production database
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
       - name: Apply pending migrations
         run: supabase db push --linked --yes
       - name: Verify MCP database access
         run: node scripts/check-production.mjs --database
-      - name: Deploy built app
-        run: pnpm dlx vercel@50.0.1 deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+      - name: Promote verified deployment
+        env:
+          DEPLOYMENT_URL: ${{ steps.stage.outputs.url }}
+        run: pnpm dlx vercel@50.0.1 promote "$DEPLOYMENT_URL" --yes --token="$VERCEL_TOKEN"
