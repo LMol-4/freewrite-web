@@ -1,22 +1,15 @@
+import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../lib/supabase/database.types";
 import { decryptKey, encryptKey, generateKey, keyHash } from "./crypto";
 import { randomUUID } from "node:crypto";
 
-type KeyRow = { user_id: string; generation: string; key_hash: string; ciphertext: string; created_at: string; last_used_at: string | null; window_started_at: string; request_count: number };
-type McpDatabase = Omit<Database, "public"> & { public: Omit<Database["public"], "Tables" | "Functions"> & {
-  Tables: Database["public"]["Tables"] & { mcp_keys: { Row: KeyRow; Insert: KeyRow; Update: Partial<KeyRow>; Relationships: [] } };
-  Functions: Database["public"]["Functions"] & {
-    replace_mcp_key: { Args: { p_user_id: string; p_expected: string | null; p_generation: string; p_hash: string; p_ciphertext: string }; Returns: boolean };
-    authenticate_mcp_key: { Args: { p_hash: string }; Returns: { account_id: string; limited: boolean }[] };
-  };
-} };
 // Never import this module in a client component. All reads must be scoped to
 // the identity established by the browser session or the verified MCP key.
 export function backend() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) throw Error("MCP server is not configured");
-  return createClient<McpDatabase>(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
+  return createClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, key, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { fetch: (url, options) => fetch(url, { ...options, cache: "no-store" }) },
   });
@@ -30,7 +23,8 @@ export async function readKey(userId: string, reveal = false) {
 export async function replaceKey(userId: string, expected: string | null) {
   const key = generateKey();
   const { data, error } = await backend().rpc("replace_mcp_key", {
-    p_user_id: userId, p_expected: expected, p_generation: randomUUID(),
+    // Generated RPC types omit nullable parameters; SQL deliberately accepts null for first generation.
+    p_user_id: userId, p_expected: expected!, p_generation: randomUUID(),
     p_hash: keyHash(key), p_ciphertext: encryptKey(key, userId),
   });
   if (error) throw Error("Key unavailable");

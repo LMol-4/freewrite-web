@@ -117,6 +117,39 @@ export type Database = {
         }
         Relationships: []
       }
+      mcp_keys: {
+        Row: {
+          ciphertext: string
+          created_at: string
+          generation: string
+          key_hash: string
+          last_used_at: string | null
+          request_count: number
+          user_id: string
+          window_started_at: string
+        }
+        Insert: {
+          ciphertext: string
+          created_at?: string
+          generation: string
+          key_hash: string
+          last_used_at?: string | null
+          request_count?: number
+          user_id: string
+          window_started_at?: string
+        }
+        Update: {
+          ciphertext?: string
+          created_at?: string
+          generation?: string
+          key_hash?: string
+          last_used_at?: string | null
+          request_count?: number
+          user_id?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
       preferences: {
         Row: {
           client_updated_at: string
@@ -152,6 +185,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      authenticate_mcp_key: {
+        Args: { p_hash: string }
+        Returns: {
+          account_id: string
+          limited: boolean
+        }[]
+      }
       get_preferences: {
         Args: never
         Returns: {
@@ -195,6 +235,16 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      replace_mcp_key: {
+        Args: {
+          p_ciphertext: string
+          p_expected: string
+          p_generation: string
+          p_hash: string
+          p_user_id: string
+        }
+        Returns: boolean
       }
     }
     Enums: {

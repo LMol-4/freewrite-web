@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync, readdirSync, copyFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -25,8 +25,11 @@ function status() {
 }
 function environment() {
   const value = status();
+  const secretPath = resolve(work, "mcp-secret");
+  if (!existsSync(secretPath)) writeFileSync(secretPath, randomBytes(32).toString("hex"));
   const env = { NEXT_PUBLIC_SUPABASE_URL: value.API_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: value.ANON_KEY,
-    LOCAL_TEST_SERVICE_KEY: value.SERVICE_ROLE_KEY, APP_ORIGIN: 'http://127.0.0.1:3000', APP_ALLOWED_ORIGINS: 'http://localhost:3000', LOCAL_TEST_MAIL_URL: 'http://127.0.0.1:55324' };
+    LOCAL_TEST_SERVICE_KEY: value.SERVICE_ROLE_KEY, SUPABASE_SERVICE_ROLE_KEY: value.SERVICE_ROLE_KEY,
+    MCP_KEY_ENCRYPTION_SECRET: readFileSync(secretPath, "utf8"), APP_ORIGIN: 'http://127.0.0.1:3000', APP_ALLOWED_ORIGINS: 'http://localhost:3000', LOCAL_TEST_MAIL_URL: 'http://127.0.0.1:55324' };
   writeFileSync(resolve(work, 'env.json'), JSON.stringify(env));
   return { ...process.env, ...env };
 }
@@ -84,7 +87,7 @@ if (task === 'prepare') {
     if (stamp.buildId !== readFileSync(resolve(root, ".next/BUILD_ID"), "utf8") || stamp.url !== env.NEXT_PUBLIC_SUPABASE_URL || stamp.keyHash !== fingerprint) throw Error("Build is not verified for this disposable backend. Run local-test build first.");
   }
   // Administrative fixture credentials are never passed to the application build.
-  if (task === 'build') delete env.LOCAL_TEST_SERVICE_KEY;
+  if (task === 'build') { delete env.LOCAL_TEST_SERVICE_KEY; delete env.SUPABASE_SERVICE_ROLE_KEY; delete env.MCP_KEY_ENCRYPTION_SECRET; }
   const args = task === 'build' ? ['node_modules/next/dist/bin/next', 'build'] : ['node_modules/@playwright/test/cli.js', 'test', ...process.argv.slice(3)];
   command(process.execPath, args, { env, stdio: 'inherit' });
   if (task === 'build') command(process.execPath, ['scripts/build-worker.mjs'], { env, stdio: 'inherit' });
