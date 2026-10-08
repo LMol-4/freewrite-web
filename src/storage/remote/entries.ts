@@ -18,6 +18,10 @@ export function createRemoteEntryStore(client: SupabaseClient<Database>, userId:
     if (data.user?.id !== userId) throw new RemoteError("Sign in again to sync this account.", "auth");
   }
   const bucket = client.storage.from("notes");
+  // Keep only upload acknowledgements, not writing. A failed publication RPC
+  // can retry without resending/downloading the same immutable object. Receipt
+  // lookup still comes first so deletion and ambiguous commits remain safe.
+  const uploaded = new Set<string>();
   async function download(path: string, sha: string | null) {
     const { data, error } = await bucket.download(path); check();
     if (error) fail(error);
@@ -44,16 +48,21 @@ export function createRemoteEntryStore(client: SupabaseClient<Database>, userId:
       await authorize();
       if (mutation.userId !== userId) throw new RemoteError("Account mismatch", "permission");
       // Resolve ambiguous publication before touching an object which deletion may have removed.
-      const receipt = await client.from("entry_receipts").select("request,result").eq("user_id", userId).eq("mutation_id", mutation.mutationId).maybeSingle();
+      const receipt = await client.from("entry_receipts").select("mutation_id").eq("user_id", userId).eq("mutation_id", mutation.mutationId).maybeSingle();
       check(); if (receipt.error) fail(receipt.error);
+      const uploadKey = JSON.stringify([mutation.mutationId, mutation.request.path, mutation.request.sha256]);
       if (!receipt.data && mutation.request.operation !== "delete") {
         if (mutation.body === null || await digest(mutation.body) !== mutation.request.sha256) throw new RemoteError("Frozen body does not match its digest.", "integrity");
-        const { error } = await bucket.upload(mutation.request.path, new Blob([mutation.body], { type: "text/markdown;charset=utf-8" }), { upsert: false, contentType: "text/markdown;charset=utf-8" });
-        check();
-        if (error) {
-          // Only a storage duplicate triggers verification; arbitrary uniqueness errors aren't success.
-          if (String(error.statusCode) !== "409" && error.message !== "The resource already exists") fail(error);
-          await download(mutation.request.path, mutation.request.sha256);
+        if (!uploaded.has(uploadKey)) {
+          const { error } = await bucket.upload(mutation.request.path, new Blob([mutation.body], { type: "text/markdown;charset=utf-8" }), { upsert: false, contentType: "text/markdown;charset=utf-8" });
+          check();
+          if (error) {
+            // Only a storage duplicate triggers verification; arbitrary uniqueness errors aren't success.
+            if (String(error.statusCode) !== "409" && error.message !== "The resource already exists") fail(error);
+            await download(mutation.request.path, mutation.request.sha256);
+          }
+          uploaded.add(uploadKey);
+          if (uploaded.size > 128) uploaded.delete(uploaded.values().next().value!);
         }
       }
       check();
@@ -61,6 +70,7 @@ export function createRemoteEntryStore(client: SupabaseClient<Database>, userId:
       check(); if (error) fail(error);
       const result = data as unknown as PublicationResult;
       if (!result || !["ok", "conflict", "deleted", "missing"].includes(result.status) || (result.entry && result.entry.user_id !== userId)) throw new RemoteError("Invalid publication response", "integrity");
+      uploaded.delete(uploadKey);
       return result;
     },
     async cleanup(task) {
