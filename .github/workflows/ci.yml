@@ -11,6 +11,33 @@ concurrency:
   # Never interrupt a production migration/deployment with a newer push.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
+  release-tools:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.75.0
+      - name: Verify release CLI installation and commands
+        shell: bash
+        run: |
+          npm install --global vercel@50.0.1
+          vercel --version
+          # This pinned Vercel CLI returns 2 for help, unlike most CLIs.
+          verify_vercel_help() {
+            local help
+            help=$(vercel "$1" --help 2>&1) || test "$?" -eq 2
+            [[ "$help" == *"$2"* ]]
+          }
+          verify_vercel_help deploy --skip-domain
+          verify_vercel_help promote --yes
+          supabase link --help
+          supabase db push --help
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -81,7 +108,7 @@ jobs:
   # Preserve the existing required CI / test check for branch/deployment gates.
   test:
     if: always()
-    needs: [checks, browsers]
+    needs: [checks, browsers, release-tools]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -89,9 +116,11 @@ jobs:
         env:
           CHECKS_RESULT: ${{ needs.checks.result }}
           BROWSERS_RESULT: ${{ needs.browsers.result }}
+          RELEASE_TOOLS_RESULT: ${{ needs.release-tools.result }}
         run: |
           test "$CHECKS_RESULT" = success
           test "$BROWSERS_RESULT" = success
+          test "$RELEASE_TOOLS_RESULT" = success
   release:
     needs: [test]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
@@ -131,7 +160,15 @@ jobs:
           version: 2.75.0
       - run: pnpm install --frozen-lockfile
       - name: Install deployment CLI
-        run: pnpm add --global vercel@50.0.1
+        # setup-node provides npm's global bin on PATH. Avoid pnpm's separate
+        # global-bin configuration; app dependencies still use locked pnpm.
+        run: npm install --global vercel@50.0.1
+      - name: Link production database
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+      - name: Check pending migrations without applying
+        run: supabase db push --linked --dry-run
+      - name: Verify database verification permissions
+        run: node scripts/check-production.mjs --database-access
       - name: Build staged production deployment on Vercel
         id: stage
         shell: bash
@@ -139,8 +176,6 @@ jobs:
           deployment_url=$(vercel deploy --prod --skip-domain --yes --build-env SUPABASE_PROJECT_REF="$SUPABASE_PROJECT_REF" --token="$VERCEL_TOKEN")
           [[ "$deployment_url" =~ ^https://[a-zA-Z0-9.-]+\.vercel\.app$ ]] || { echo 'Invalid staged deployment URL'; exit 1; }
           echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
-      - name: Link production database
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
       - name: Apply pending migrations
         run: supabase db push --linked --yes
       - name: Verify MCP database access

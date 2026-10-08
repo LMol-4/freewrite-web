@@ -4,6 +4,9 @@ CI owns production releases: all checks and both browser suites → staged Verce
 production build → pending Supabase migrations → MCP schema check → promotion.
 Pull requests only use disposable databases. Releases run serially and are not
 automatically cancelled by newer pushes. A failed step stops the release.
+CLI installation is tested in a fast parallel CI job before release. Once tests
+pass, database linking, a migration dry run, and verification-API permissions are
+checked before the Vercel build. These checks do not apply migrations.
 
 Vercel builds once using its production settings and build cache. `--skip-domain`
 keeps the existing site on the production domain until `vercel promote` runs.
@@ -24,7 +27,10 @@ deployment branches to `main`. Add these environment secrets:
 
 Scope the Supabase token to this project. Grant **Project Settings**, **API Keys**,
 and **API Key Secrets** Read permissions for `supabase link`, plus **Database Read**
-for the schema verification query. SQL migrations authenticate with the database
+for the schema verification query. Also grant **Connection Pooling → Read**:
+the pinned CLI reads the session-pooler connection settings so hosted runners
+can connect without depending on direct-database IPv6 access.
+SQL migrations authenticate with the database
 password. Do not add required environment reviewers if you want automatic releases.
 
 Add these environment variables in the same GitHub environment:

@@ -44,6 +44,13 @@ describe('post-migration gate', () => {
   it('accepts a complete schema', async () => {
     await expect(verifyDatabase(credentials, async () => Response.json([{ ready: true }]))).resolves.toBeUndefined();
   });
+  it('checks API access before migrations without requiring the new schema', async () => {
+    await verifyDatabase(credentials, async (_url, options) => {
+      const body = JSON.parse(options!.body as string);
+      expect(body).toEqual({ query: 'select true as ready', read_only: true });
+      return Response.json([{ ready: true }]);
+    }, false);
+  });
   it.each([{ result: [] }, { result: [{ ready: false }] }, { result: [{ ready: 'true' }] }])('rejects incomplete schema: $result', async ({ result }) => {
     await expect(verifyDatabase(credentials, async () => Response.json(result))).rejects.toThrow('verification failed');
   });
