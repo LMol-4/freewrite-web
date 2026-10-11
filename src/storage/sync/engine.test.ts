@@ -48,12 +48,14 @@ it("reconciles history without rereading every body for each remote row or hashi
   await s.engine.flush();
   const scans = vi.spyOn(s.journal, "entries");
   const hashes = vi.spyOn(crypto.subtle, "digest");
+  const freezes = vi.spyOn(s.journal, "freeze");
   try {
     await s.engine.flush(true);
     expect(scans.mock.calls.length).toBeLessThanOrEqual(3);
     expect(hashes).not.toHaveBeenCalled();
+    expect(freezes).not.toHaveBeenCalled();
     expect(await s.journal.hasPending()).toBe(false);
-  } finally { scans.mockRestore(); hashes.mockRestore(); }
+  } finally { scans.mockRestore(); hashes.mockRestore(); freezes.mockRestore(); }
 });
 it("freezes exact bytes and IDs across reload while later edits remain a successor", async () => {
   const { local, journal } = setup(); const entry = await local.create({ body: "one" });
