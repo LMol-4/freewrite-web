@@ -6,9 +6,10 @@ const PREVIEW_LENGTH = 30;
 /** Matches `js/renderer.js:488-489`: newlines collapsed to spaces, trimmed, truncated at 30 chars. */
 export function derivePreview(body: string): string {
   const flattened = body.replace(/\n/g, " ").trim();
-  return flattened.length > PREVIEW_LENGTH
-    ? flattened.slice(0, PREVIEW_LENGTH) + "..."
-    : flattened;
+  if (flattened.length <= PREVIEW_LENGTH) return flattened;
+  // Never split an emoji: a lone surrogate is rejected by Postgres jsonb.
+  const cut = flattened.slice(0, PREVIEW_LENGTH);
+  return (/[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut) + "...";
 }
 
 export function deriveWordCount(body: string): number {

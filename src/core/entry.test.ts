@@ -26,6 +26,11 @@ describe("derivePreview", () => {
     expect(preview).toBe("a".repeat(30) + "...");
   });
 
+  it("never splits an emoji at the truncation point", () => {
+    const body = "a".repeat(29) + "😀 rest";
+    expect(derivePreview(body)).toBe("a".repeat(29) + "...");
+  });
+
   it("does not truncate exactly 30 chars", () => {
     const body = "a".repeat(30);
     expect(derivePreview(body)).toBe(body);
