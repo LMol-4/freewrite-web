@@ -91,4 +91,4 @@ Pagination is a live view; edits and additions during a review are not a frozen 
 - A note changes during retrieval: fetch it again from the beginning.
 
 The endpoint is stateless. It returns JSON for POST requests and does not offer a
-standalone SSE stream. GET and DELETE return 405 after authentication.
+standalone SSE stream. GET and DELETE return 405 and do not count toward the rate limit.

@@ -119,9 +119,11 @@ export class EntrySync {
     for (let round = 0; round < 8; round++) {
       this.check();
       const entries = await this.journal.entries();
+      const attempted = new Set((await this.journal.mutations()).map(m => m.entryId));
       let work = false;
       for (const entry of entries) {
-        if (failed.has(entry.id)) continue;
+        // Clean rows without an attempt have nothing to freeze; skip their write transaction.
+        if (failed.has(entry.id) || (!entry.dirty && !attempted.has(entry.id))) continue;
         this.check(); const m = await this.journal.freeze(entry); if (!m) continue;
         if (!force && m.retryAt > this.now()) {
           if (m.retryAt < Number.MAX_SAFE_INTEGER) this.retry(m.retryAt - this.now());

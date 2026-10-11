@@ -36,15 +36,14 @@ export async function listNotes(repository: NoteRepository, value: unknown) {
     cursor = { id: decoded.id, createdAt: decoded.createdAt };
   }
   const rows = await repository.list(limit + 1, cursor);
-  const notes = [];
-  for (const row of rows.slice(0, limit)) {
+  const notes = await Promise.all(rows.slice(0, limit).map(async row => {
     try {
       const body = (await repository.body(row)).replace(/\s+/g, " ").trim();
-      notes.push({ ...metadata(row), excerpt: body.slice(0, 400), excerpt_truncated: body.length > 400 });
+      return { ...metadata(row), excerpt: body.slice(0, 400), excerpt_truncated: body.length > 400 };
     } catch {
-      notes.push({ ...metadata(row), excerpt: row.preview_text, excerpt_unavailable: true });
+      return { ...metadata(row), excerpt: row.preview_text, excerpt_unavailable: true };
     }
-  }
+  }));
   const last = rows[Math.min(limit, rows.length) - 1];
   return { notes, next_cursor: rows.length > limit && last ? encode({ createdAt: last.created_at, id: last.id }) : null };
 }
@@ -60,20 +59,19 @@ export async function getNotes(repository: NoteRepository, value: unknown) {
       typeof c.offset !== "number" || !Number.isSafeInteger(c.offset) || c.offset < 0) return invalid();
     continuation = { id: ids[0], version: c.version, offset: c.offset };
   }
-  const notes = [];
-  for (const id of ids) {
+  const notes = await Promise.all(ids.map(async id => {
     try {
       const row = await repository.get(id);
-      if (!row) { notes.push({ id, error: "not_found" }); continue; }
-      if (continuation && continuation.version !== row.version) { notes.push({ id, error: "note_changed", message: "Read this note again without a cursor." }); continue; }
+      if (!row) return { id, error: "not_found" };
+      if (continuation && continuation.version !== row.version) return { id, error: "note_changed", message: "Read this note again without a cursor." };
       const body = await repository.body(row);
       const offset = continuation?.offset ?? 0;
-      if (offset > body.length) { notes.push({ id, error: "invalid_cursor" }); continue; }
+      if (offset > body.length) return { id, error: "invalid_cursor" };
       let end = Math.min(offset + 12000, body.length);
       if (end < body.length && /[\uD800-\uDBFF]/.test(body[end - 1])) end--;
-      notes.push({ ...metadata(row), content: body.slice(offset, end), offset,
-        next_cursor: end < body.length ? encode({ id, version: row.version, offset: end }) : null });
-    } catch { notes.push({ id, error: "unavailable", message: "This note could not be read. Retry later." }); }
-  }
+      return { ...metadata(row), content: body.slice(offset, end), offset,
+        next_cursor: end < body.length ? encode({ id, version: row.version, offset: end }) : null };
+    } catch { return { id, error: "unavailable", message: "This note could not be read. Retry later." }; }
+  }));
   return { notes };
 }

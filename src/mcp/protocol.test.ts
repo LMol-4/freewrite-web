@@ -43,7 +43,9 @@ describe("MCP transport", () => {
   it("returns rate limits, no-store headers, and no standalone stream", async () => {
     const limited = await handleMcp(request({}), async () => ({ account_id: "alice", limited: true }), repository);
     expect(limited.status).toBe(429); expect(limited.headers.get("retry-after")).toBe("60");
-    const get = await handleMcp(new Request("https://freewrite.test/mcp", { headers: { Authorization: "Bearer current" } }), auth, repository);
+    const counted = vi.fn(auth);
+    const get = await handleMcp(new Request("https://freewrite.test/mcp", { headers: { Authorization: "Bearer current" } }), counted, repository);
     expect(get.status).toBe(405); expect(get.headers.get("cache-control")).toContain("no-store");
+    expect(counted).not.toHaveBeenCalled();
   });
 });

@@ -23,5 +23,3 @@ export class VersionConflictError extends Error {
     this.name = "VersionConflictError";
   }
 }
-
-export interface EntryCursor { createdAt: string; id: string }

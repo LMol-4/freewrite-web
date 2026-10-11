@@ -4,7 +4,6 @@ import {
   derivePreview,
   deriveWordCount,
   deriveCharCount,
-  isEmptyBody,
 } from "./entry";
 
 describe("derivePreview", () => {
@@ -24,6 +23,11 @@ describe("derivePreview", () => {
     const body = "a".repeat(40);
     const preview = derivePreview(body);
     expect(preview).toBe("a".repeat(30) + "...");
+  });
+
+  it("never splits an emoji at the truncation point", () => {
+    const body = "a".repeat(29) + "😀 rest";
+    expect(derivePreview(body)).toBe("a".repeat(29) + "...");
   });
 
   it("does not truncate exactly 30 chars", () => {
@@ -58,19 +62,5 @@ describe("deriveCharCount", () => {
 
   it("is zero for an empty body", () => {
     expect(deriveCharCount(NEW_ENTRY_BODY)).toBe(0);
-  });
-});
-
-describe("isEmptyBody", () => {
-  it("is true for the new-entry seed body", () => {
-    expect(isEmptyBody(NEW_ENTRY_BODY)).toBe(true);
-  });
-
-  it("is true for whitespace only", () => {
-    expect(isEmptyBody("   \n  ")).toBe(true);
-  });
-
-  it("is false once there is any non-whitespace text", () => {
-    expect(isEmptyBody("  x  ")).toBe(false);
   });
 });
