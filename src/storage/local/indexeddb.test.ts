@@ -5,6 +5,7 @@ import { claimAccount, clearAccount, closeDatabase, createIndexedDBEntryStore, o
 import { VersionConflictError } from "../types";
 beforeEach(async () => { await closeDatabase(); await deleteDB("freewrite"); });
 async function store(user = "a", owner = "tab-a") { expect(await claimAccount(user, owner)).toBe(true); return createIndexedDBEntryStore(user, owner); }
+const rows = async (user: string) => (await openFreewriteDB()).getAllFromIndex("entries", "account", user);
 it("atomically creates one blank under concurrent initialization", async () => {
   const s = await store(); const results = await Promise.all([s.ensureEntry(), s.ensureEntry(), s.ensureEntry()]);
   expect(new Set(results.map(e => e.id)).size).toBe(1);
@@ -20,13 +21,13 @@ it("isolates accounts and cleanup leaves other accounts untouched", async () => 
   const a = await store(); const b = await store("b", "tab-b");
   const ea = await a.create({ body: "private A" }); const eb = await b.create({ body: "private B" });
   expect(await b.get(ea.id)).toBeNull(); expect(await a.get(eb.id)).toBeNull();
-  await clearAccount("a"); expect(await a.list()).toHaveLength(0); expect((await b.get(eb.id))?.body).toBe("private B");
+  await clearAccount("a"); expect(await rows("a")).toHaveLength(0); expect((await b.get(eb.id))?.body).toBe("private B");
 });
 it("quarantines exact v1 records without exposing or deleting them", async () => {
   const old = await openDB("freewrite", 1, { upgrade(db) { db.createObjectStore("entries", { keyPath: "id" }); } });
   const legacy = { id: "old", body: "owner unknown", custom: "preserve this too" };
   await old.put("entries", legacy); old.close();
-  const s = await store(); expect(await s.list()).toEqual([]);
+  await store(); expect(await rows("a")).toEqual([]);
   await clearAccount("a"); const db = await openFreewriteDB();
   expect(await db.get("legacy", "old")).toEqual(legacy);
   expect(await db.get("meta", "legacy")).toMatchObject({ count: 1 });
@@ -71,7 +72,7 @@ it("resumes authorized cleanup after interruption, preserving other accounts", a
   await a.create({ body: "discard authorized" }); const other = await b.create({ body: "retain" });
   await setAccountLock("a", "tab-a", true, true);
   await closeDatabase(); await resumeAccount("a");
-  expect(await a.list()).toEqual([]); expect((await b.get(other.id))?.body).toBe("retain");
+  expect(await rows("a")).toEqual([]); expect((await b.get(other.id))?.body).toBe("retain");
   expect(await claimAccount("a", "new-tab")).toBe(true);
 });
 it("upgrades v2 account entries and pending work unchanged while adding the outbox", async () => {

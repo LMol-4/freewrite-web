@@ -1,7 +1,7 @@
 import { type DBSchema, type IDBPDatabase, type IDBPTransaction, openDB } from "idb";
 import { deriveCharCount, derivePreview, deriveWordCount, NEW_ENTRY_BODY } from "../../core/entry";
 import { generateEntryId } from "../../core/id";
-import { type Entry, type EntryMeta, VersionConflictError } from "../types";
+import { type Entry, VersionConflictError } from "../types";
 import type { PreferenceState } from "../preferences";
 import type { Mutation, Cleanup } from "../sync/types";
 import { newestFirst } from "../../core/entry-order";
@@ -125,7 +125,6 @@ export async function resumeAccount(userId: string) {
   if (current?.locked && (!current.owner || (current.expires ?? 0) <= Date.now())) await tx.store.put({ key: userId });
   await tx.done;
 }
-function toMeta(e: LocalEntry): EntryMeta { const { id, createdAt, updatedAt, previewText, wordCount, charCount, version } = e; return { id, createdAt, updatedAt, previewText, wordCount, charCount, version }; }
 function makeEntry(userId: string, body: string, createdAt = new Date(), recovered = false): LocalEntry {
   return { userId, id: generateEntryId(), body, createdAt: createdAt.toISOString(), updatedAt: createdAt.toISOString(),
     previewText: derivePreview(body), wordCount: deriveWordCount(body), charCount: deriveCharCount(body),
@@ -144,12 +143,6 @@ export function createIndexedDBEntryStore(userId: string, owner: string) {
     catch (error) { try { tx.abort(); } catch {} await tx.done.catch(() => {}); throw error; }
   }
   return {
-    async list(opts?: { cursor?: import("../types").EntryCursor; limit?: number }) {
-      let all = await (await openFreewriteDB()).getAllFromIndex("entries", "account", userId);
-      all.sort(newestFirst);
-      if (opts?.cursor) { const cursor = opts.cursor; all = all.filter(e => newestFirst(e, cursor) > 0); }
-      return all.slice(0, opts?.limit).map(toMeta);
-    },
     async get(id: string) { return (await (await openFreewriteDB()).get("entries", [userId, id])) ?? null; },
     ensureEntry() { return write(async tx => {
       const all = await tx.objectStore("entries").index("account").getAll(userId);
@@ -174,6 +167,5 @@ export function createIndexedDBEntryStore(userId: string, owner: string) {
     }); },
     recover(body: string) { return write(async tx => { const entry = makeEntry(userId, body, new Date(), true); await put(tx, entry); return entry; }); },
     // Deletion must go through the durable sync journal, including unpublished attempts.
-    async hasWriting() { return (await (await openFreewriteDB()).getAllFromIndex("entries", "account", userId)).some(e => e.dirty && e.body?.trim() !== ""); },
   };
 }

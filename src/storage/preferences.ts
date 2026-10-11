@@ -1,5 +1,5 @@
-import { DEFAULT_FONT_MODE, DEFAULT_FONT_SIZE, FONT_MODES, FONT_SIZES, type FontMode, type FontSize } from "../core/fonts";
-import { DEFAULT_THEME, THEMES, type Theme } from "../core/theme";
+import { DEFAULT_FONT_MODE, DEFAULT_FONT_SIZE, type FontMode, type FontSize } from "../core/fonts";
+import { DEFAULT_THEME, type Theme } from "../core/theme";
 import { checkFence, openFreewriteDB } from "./local/indexeddb";
 export interface Preferences { theme: Theme; font: FontMode; fontSize: FontSize }
 export const DEFAULT_PREFERENCES: Preferences = { theme: DEFAULT_THEME, font: DEFAULT_FONT_MODE, fontSize: DEFAULT_FONT_SIZE };
@@ -8,14 +8,6 @@ export interface PreferenceState {
   pending: Partial<Preferences>; fields: Partial<Record<keyof Preferences, number>>;
 }
 export const ACTIVE_THEME_KEY = "freewrite:active-theme";
-export function parseStoredPreferences(raw: string | null) {
-  let p: Record<string, unknown> = {};
-  try { const value = JSON.parse(raw ?? "null"); if (value && typeof value === "object") p = value; } catch {}
-  return { theme: THEMES.includes(p.theme as Theme) ? p.theme as Theme : DEFAULT_THEME,
-    font: FONT_MODES.includes(p.font as FontMode) ? p.font as FontMode : DEFAULT_FONT_MODE,
-    fontSize: FONT_SIZES.includes(p.fontSize as FontSize) ? p.fontSize as FontSize : DEFAULT_FONT_SIZE,
-    clientUpdatedAt: typeof p.clientUpdatedAt === "string" && Number.isFinite(Date.parse(p.clientUpdatedAt)) ? p.clientUpdatedAt : new Date(0).toISOString() };
-}
 export function cacheTheme(userId: string, theme: Theme) {
   document.documentElement.dataset.theme = theme;
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#1e1e1e" : "#ffffff");

@@ -20,8 +20,3 @@ export function deriveWordCount(body: string): number {
 export function deriveCharCount(body: string): number {
   return body.trim().length;
 }
-
-/** An entry is empty when its trimmed body is empty — the whole cleanup safety argument (§7). */
-export function isEmptyBody(body: string): boolean {
-  return body.trim() === "";
-}

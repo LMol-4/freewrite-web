@@ -4,7 +4,6 @@ import {
   derivePreview,
   deriveWordCount,
   deriveCharCount,
-  isEmptyBody,
 } from "./entry";
 
 describe("derivePreview", () => {
@@ -63,19 +62,5 @@ describe("deriveCharCount", () => {
 
   it("is zero for an empty body", () => {
     expect(deriveCharCount(NEW_ENTRY_BODY)).toBe(0);
-  });
-});
-
-describe("isEmptyBody", () => {
-  it("is true for the new-entry seed body", () => {
-    expect(isEmptyBody(NEW_ENTRY_BODY)).toBe(true);
-  });
-
-  it("is true for whitespace only", () => {
-    expect(isEmptyBody("   \n  ")).toBe(true);
-  });
-
-  it("is false once there is any non-whitespace text", () => {
-    expect(isEmptyBody("  x  ")).toBe(false);
   });
 });
